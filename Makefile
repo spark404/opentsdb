@@ -69,6 +69,10 @@ tsdb_JAVA = \
 	src/uid/NoSuchUniqueName.java	\
 	src/uid/UniqueId.java	\
 	src/uid/UniqueIdInterface.java	\
+	src/odata/OpenTSDBProducer.java	\
+	src/odata/OpenTSDBProducerFactory.java	\
+	src/odata/ODataGrizzlyFactory.java	\
+
 
 tsdb_LIBADD = \
 	third_party/hbase/hbaseasync-1.0.jar	\
@@ -80,9 +84,15 @@ tsdb_LIBADD = \
 	third_party/slf4j/slf4j-api-1.6.1.jar	\
 	third_party/suasync/suasync-1.0.jar	\
 	third_party/zookeeper/zookeeper-3.3.1.jar	\
+	third_party/jersey/jersey-core-1.6.jar	\
+	third_party/jersey/jersey-server-1.6.jar	\
+	third_party/jersey/jersey-grizzly-1.6.jar	\
+	third_party/jersey/grizzly-servlet-webserver-1.9.34.jar	\
+	third_party/odata4j/odata4j-0.4.jar	\
+	third_party/joda-time/joda-time-1.6.2.jar	\
+	third_party/core4j/core4j-0.4.jar	\
 
 test_JAVA = \
-	src/core/TestTags.java	\
 	src/stats/TestHistogram.java	\
 	src/uid/TestNoSuchUniqueId.java	\
 	src/uid/TestUniqueId.java	\
@@ -142,6 +152,7 @@ $(top_builddir)/.javac-stamp: $(tsdb_JAVA) $(BUILT_SOURCES) $(tsdb_LIBADD)
 # using Git while rebasing and whatnot).
 gwtc: $(top_builddir)/.gwtc-stamp
 MD5 = md5  # TODO(tsuna): Detect the right command to use at configure time.
+MD5 = digest -a md5
 $(top_builddir)/.gwtc-stamp: $(httpui_JAVA) $(httpui_DEPENDENCIES)
 	@mkdir -p $(top_builddir)/gwt
 	cat $(httpui_JAVA) | $(MD5) >"$@-t"
@@ -171,7 +182,7 @@ gwttsd: staticroot
 $(top_builddir)/.staticroot-stamp: $(dist_pkgdata_DATA) $(top_builddir)/.gwtc-stamp
 	mkdir -p $(DEV_TSD_STATICROOT)
 	cp $(dist_pkgdata_DATA) $(DEV_TSD_STATICROOT)
-	find -L $(DEV_TSD_STATICROOT) -type l -delete
+	find -L $(DEV_TSD_STATICROOT) -type l -exec rm {} \;
 	p=`pwd`/$(top_builddir)/gwt/queryui && cd $(DEV_TSD_STATICROOT) \
 	  && for i in $$p/*; do ln -s -f "$$i" || break; done
 	@touch $(top_builddir)/.staticroot-stamp

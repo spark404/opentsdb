@@ -1,0 +1,18 @@
+Limited OData support for OpenTSDB
+
+Author: "Hugo Trippaers" <opensource@strocamp.net>
+
+The OData interface is based on the odata4j library (http://code.google.com/p/odata4j/).
+
+The current functionality is limited to retrieving the list of metrics in the database and retrieving the datapoints for the last day of any metric in the system. The interface is tested with OData Explorer (http://silverlight.net/ODataExplorer/) and Tableau 6.0 (www.tableausoftware.com).
+
+
+TODO:
+	* Functionality of the timeseries retrieve is extremely limited at the moment
+        * Timeseries retrieve should be implemented as an Odata procedure, will be done once this is supported in OData4j
+        * Need to implement a provider that lists the tags (per metric)
+
+ISSUES:
+	* Using the Grizzly webserver as we need the servlet interface to use the fully functionality of Jersey, so its not integrated with the current netty based webserver
+	* Shutdown of Grizlly is pretty dirty.
+

@@ -252,6 +252,10 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
         }
         public void run() {
           chan.getFactory().releaseExternalResources();
+	  if (chan.getParent() != null) {
+             logInfo(chan, "Shutting down listener channel");
+             chan.getParent().unbind();
+          }
         }
       }
       // Attempt to commit any data point still only in RAM.
@@ -467,9 +471,9 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
   // Logging helpers. //
   // ---------------- //
 
-  //private static void logInfo(final HttpQuery query, final String msg) {
-  //  LOG.info(query.channel().toString() + ' ' + msg);
-  //}
+  private static void logInfo(final HttpQuery query, final String msg) {
+    LOG.info(query.channel().toString() + ' ' + msg);
+  }
 
   private static void logWarn(final HttpQuery query, final String msg) {
     LOG.warn(query.channel().toString() + ' ' + msg);
@@ -489,9 +493,9 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
   //  LOG.error(query.channel().toString() + ' ' + msg, e);
   //}
 
-  //private void logInfo(final Channel chan, final String msg) {
-  //  LOG.info(chan.toString() + ' ' + msg);
-  //}
+  private void logInfo(final Channel chan, final String msg) {
+    LOG.info(chan.toString() + ' ' + msg);
+  }
 
   private static void logWarn(final Channel chan, final String msg) {
     LOG.warn(chan.toString() + ' ' + msg);

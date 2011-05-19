@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 # Generates BuildData.java
 # Usage: gen_build_data.sh path/to/BuildData.java my.package.name
 # Author: Benoit Sigoure (tsuna@stumbleupon.com)
@@ -31,7 +31,8 @@ print "date=%r" % time.strftime("%Y/%m/%d %T %z", time.gmtime(t))
 EOF`
 eval "$sh"  # Sets the timestamp and date variables.
 
-user=`whoami`
+#user=`whoami`
+user=$USER
 host=`hostname`
 repo=`pwd`
 
