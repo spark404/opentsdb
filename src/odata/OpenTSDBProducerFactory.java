@@ -28,13 +28,10 @@ import org.odata4j.producer.ODataProducerFactory;
  * @author htrippaers
  */
 public class OpenTSDBProducerFactory implements ODataProducerFactory {
-    
+
     @Override
     public ODataProducer create(Properties arg0) {
         OpenTSDBProducer producer = new OpenTSDBProducer();
-         
-         return producer;
-         
-    }    
+        return producer;
+    }
 }
-

@@ -12,6 +12,10 @@
 // see <http://www.gnu.org/licenses/>.
 package net.opentsdb.tsd;
 
+import com.sun.jersey.api.container.ContainerFactory;
+import com.sun.jersey.server.impl.container.netty.NettyHandlerContainer;
+import java.util.HashMap;
+import java.util.Map;
 import static org.jboss.netty.channel.Channels.pipeline;
 import org.jboss.netty.buffer.ChannelBuffer;
 import org.jboss.netty.channel.Channel;
@@ -26,6 +30,7 @@ import org.jboss.netty.handler.codec.http.HttpRequestDecoder;
 import org.jboss.netty.handler.codec.http.HttpResponseEncoder;
 
 import net.opentsdb.core.TSDB;
+import org.odata4j.producer.resources.ODataResourceConfig;
 
 /**
  * Creates a newly configured {@link ChannelPipeline} for a new channel.
@@ -47,6 +52,8 @@ public final class PipelineFactory implements ChannelPipelineFactory {
   private final TSDB tsdb;
   /** Stateless handler for RPCs. */
   private final RpcHandler rpchandler;
+  /** Handler for OData */
+  private final NettyHandlerContainer odatahandler;
 
   /**
    * Constructor.
@@ -55,6 +62,17 @@ public final class PipelineFactory implements ChannelPipelineFactory {
   public PipelineFactory(final TSDB tsdb) {
     this.tsdb = tsdb;
     this.rpchandler = new RpcHandler(tsdb);
+    
+    /**
+     * There should be a better way to do this
+     */
+    System.setProperty("odata4j.producerfactory", "net.opentsdb.odata.OpenTSDBProducerFactory");
+    ODataResourceConfig rc = new ODataResourceConfig();
+    Map<String, Object> props = new HashMap<String, Object>();
+    props.put(NettyHandlerContainer.PROPERTY_BASE_URI, "http://localhost:4242/odata.svc/");
+    rc.setPropertiesAndFeatures(props);
+    
+    this.odatahandler = ContainerFactory.createContainer(NettyHandlerContainer.class, rc);
   }
 
   @Override
@@ -97,6 +115,7 @@ public final class PipelineFactory implements ChannelPipelineFactory {
       }
       pipeline.remove(this);
       pipeline.addLast("handler", rpchandler);
+      pipeline.addLast("odatahandler", odatahandler);
 
       // Forward the buffer to the next handler.
       return buffer.readBytes(buffer.readableBytes());

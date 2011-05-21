@@ -20,6 +20,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import com.stumbleupon.async.Callback;
 import com.stumbleupon.async.Deferred;
+import java.net.URI;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -105,7 +106,19 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
       if (message instanceof String[]) {
         handleTelnetRpc(msgevent.getChannel(), (String[]) message);
       } else if (message instanceof HttpRequest) {
-        handleHttpQuery(msgevent.getChannel(), (HttpRequest) message);
+          String uri = ((HttpRequest) message).getUri();
+          LOG.info("HTTP Message, uri=" + uri); 
+        if(!uri.isEmpty() && uri.startsWith("/odata.svc/")) {
+            /* This is for the OData Handler */
+            String uri2 = uri.substring(10, uri.length());
+            LOG.info("Switching URI to " + uri2);
+            
+            ((HttpRequest) message).setUri(uri2);
+            ctx.sendUpstream(msgevent);
+        } 
+        else {
+            handleHttpQuery(msgevent.getChannel(), (HttpRequest) message);
+        }
       } else {
         logError(msgevent.getChannel(), "Unexpected message type "
                  + message.getClass() + ": " + message);

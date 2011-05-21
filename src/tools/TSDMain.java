@@ -15,27 +15,19 @@ package net.opentsdb.tools;
 import java.io.File;
 import java.net.InetSocketAddress;
 import java.util.concurrent.Executors;
-import java.util.Map;
-import java.util.HashMap;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.jboss.netty.bootstrap.ServerBootstrap;
 import org.jboss.netty.channel.socket.nio.NioServerSocketChannelFactory;
-import org.jboss.netty.channel.Channel;
-import org.jboss.netty.channel.ChannelFuture;
 
 import org.hbase.async.HBaseClient;
-
-import com.sun.grizzly.http.SelectorThread;
-import com.sun.jersey.api.container.grizzly.GrizzlyWebContainerFactory;
 
 import net.opentsdb.BuildData;
 import net.opentsdb.core.TSDB;
 import net.opentsdb.tsd.PipelineFactory;
 
-import net.opentsdb.odata.ODataGrizzlyFactory;
 
 /**
  * Main class of the TSD, the Time Series Daemon.
@@ -151,37 +143,8 @@ final class TSDMain {
 
       final InetSocketAddress addr =
         new InetSocketAddress(Integer.parseInt(argp.get("--port")));
-      final Channel channel = server.bind(addr);
+      server.bind(addr);
       log.info("Ready to serve on " + addr);
-
-      /**
-       * Using grizzly to host the OData Stuff
-       */
-      final String baseUri = "http://localhost:4243/odata.svc/";
-      final Map<String, String> initParams = new HashMap<String, String>();
-      initParams.put("com.sun.jersey.config.property.resourceConfigClass", "org.odata4j.producer.resources.ODataResourceConfig");
-      initParams.put("odata4j.producerfactory", "net.opentsdb.odata.OpenTSDBProducerFactory");
-      log.info("Starting OData service using grizzly");
-      final SelectorThread threadSelector = ODataGrizzlyFactory.create(baseUri, initParams);
-
-      new Thread() {
-	@Override
-	public void run() {
-	  /* Wait for the channel to go, then shutdown the grizzly server as well 
-           */
-	  while(true) {
-	    try {
-               Thread.sleep(5000);
-            } catch (InterruptedException ex) {}
-            if (!channel.isBound()) {
-		log.info("Main channel no longer bound.");
-              break;
-            }
-          }
-	  log.info("Shutting down Grizzly");
-	  threadSelector.stopEndpoint();
-        }
-      }.start();
 
     } catch (Throwable e) {
       factory.releaseExternalResources();
