@@ -19,6 +19,7 @@
 //package com.schubergphilis.opentsdb.odata;
 package net.opentsdb.odata;
 
+import com.sun.jersey.api.NotFoundException;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 import net.opentsdb.core.TSDB;
@@ -72,22 +73,13 @@ public class OpenTSDBProducer implements ODataProducer {
             Logger.getLogger(OpenTSDBProducer.class.getName());
     
     private final TSDB tsdb;
-    private final HBaseClient hBaseClient;
     private final EdmDataServices metadata; 
     
-    private final static String DATATABLE = "tsdb";
-    private final static String UIDTABLE = "tsdb-uid";
-    
-    /* From UniqueId.java in OpenTSDB */
-    private static final byte[] START_ROW = new byte[] { '!' };
-    private static final byte[] END_ROW = new byte[] { '~' };
-    
-    public OpenTSDBProducer() {
+    public OpenTSDBProducer(final TSDB tsdb) {
         super();
-        // Create the connection to HBase
-         hBaseClient = new HBaseClient("sbpdadm1");
+
         // Create the TSDB instance
-        tsdb = new TSDB(hBaseClient, DATATABLE, UIDTABLE);
+        this.tsdb = tsdb;
         metadata = InitializeMetaData();
     }
 
@@ -108,7 +100,7 @@ public class OpenTSDBProducer implements ODataProducer {
         else if ("Timeseries".equals(entitySetName)) {
             return getTimeseries(entitySetName, queryInfo);
         }
-        throw new UnsupportedOperationException("Not supported yet.");
+        throw new NotFoundException("No entity named :" + entitySetName);
     }
 
     @Override
@@ -193,22 +185,16 @@ public class OpenTSDBProducer implements ODataProducer {
         List<OEntity> items = new ArrayList<OEntity>();
         OEntityKey entityKey = OEntityKey.create("Name");
         
-        Scanner scanner = hBaseClient.newScanner(UIDTABLE);
-        scanner.setStartKey(START_ROW);
-        scanner.setStopKey(END_ROW);
-        scanner.setFamily("id");
-        scanner.setQualifier("metrics");        
+
+        List<String> names  = tsdb.getMetrics();
         ArrayList<ArrayList<KeyValue>> rows;
         
         try {
-            while ((rows = scanner.nextRows().joinUninterruptibly()) != null) {
-                for (final ArrayList<KeyValue> row : rows) {
-                    final byte[] key = row.get(0).key();
+            for (String name : names) {
                     List<OProperty<?>> properties = new ArrayList<OProperty<?>>();
-                    properties.add(OProperties.string("Name", new String(key)));
+                    properties.add(OProperties.string("Name", new String(name)));
                     List<OLink> links = new ArrayList<OLink>();
                     items.add(OEntities.create(entitySet, entityKey, properties, links));
-                }
             }
         } catch (Exception ex) {
             /* TODO: some kind of error handing */

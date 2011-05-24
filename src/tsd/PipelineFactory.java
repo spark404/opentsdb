@@ -30,6 +30,8 @@ import org.jboss.netty.handler.codec.http.HttpRequestDecoder;
 import org.jboss.netty.handler.codec.http.HttpResponseEncoder;
 
 import net.opentsdb.core.TSDB;
+import net.opentsdb.odata.OpenTSDBProducerFactory;
+import org.odata4j.producer.resources.ODataProducerProvider;
 import org.odata4j.producer.resources.ODataResourceConfig;
 
 /**
@@ -64,12 +66,17 @@ public final class PipelineFactory implements ChannelPipelineFactory {
     this.rpchandler = new RpcHandler(tsdb);
     
     /**
-     * There should be a better way to do this
+     * Set properties 
      */
-    System.setProperty("odata4j.producerfactory", "net.opentsdb.odata.OpenTSDBProducerFactory");
-    ODataResourceConfig rc = new ODataResourceConfig();
     Map<String, Object> props = new HashMap<String, Object>();
-    props.put(NettyHandlerContainer.PROPERTY_BASE_URI, "http://localhost:4242/odata.svc/");
+    props.put(NettyHandlerContainer.PROPERTY_BASE_URI, "http://localhost:4242/odata.svc/"); // TODO: should not be hardcoded
+    props.put(OpenTSDBProducerFactory.TSDB_INTERFACE, tsdb);
+    props.put(ODataProducerProvider.FACTORY_PROPNAME, "net.opentsdb.odata.OpenTSDBProducerFactory");
+    
+    /**
+     * Create the resource configuration
+     */
+    ODataResourceConfig rc = new ODataResourceConfig();
     rc.setPropertiesAndFeatures(props);
     
     this.odatahandler = ContainerFactory.createContainer(NettyHandlerContainer.class, rc);
