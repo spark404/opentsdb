@@ -171,6 +171,14 @@ public final class TSDB implements TSDBInterface {
   }
 
   /**
+   * Get all metric names.
+   */
+  public List<String> getMetrics() {
+    return metrics.getNames();
+  }
+  
+  
+  /**
    * Given a prefix search, returns a few matching tag names.
    * @param search A prefix to search.
    */

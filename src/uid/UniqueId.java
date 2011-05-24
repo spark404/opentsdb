@@ -417,6 +417,52 @@ public final class UniqueId implements UniqueIdInterface {
   }
 
   /**
+   * Find all names and return as a list.
+   * @return A list of known valid names that have UIDs that sort of match
+   * the search term.  If the search term is empty, returns the first few
+   * terms.
+   * @throws HBaseException if there was a problem getting suggestions from
+   * HBase.
+   */
+  public List<String> getNames() throws HBaseException {
+    // TODO(tsuna): Add caching to try to avoid re-scanning the same thing.
+    final Scanner scanner = getSuggestScanner("");
+    final LinkedList<String> names = new LinkedList<String>();
+    try {
+      ArrayList<ArrayList<KeyValue>> rows;
+      while ((rows = scanner.nextRows().joinUninterruptibly()) != null) {
+        for (final ArrayList<KeyValue> row : rows) {
+          if (row.size() != 1) {
+            LOG.error("WTF shouldn't happen!  Scanner " + scanner + " returned"
+                      + " a row that doesn't have exactly 1 KeyValue: " + row);
+            if (row.isEmpty()) {
+              continue;
+            }
+          }
+          final byte[] key = row.get(0).key();
+          final String name = fromBytes(key);
+          final byte[] id = row.get(0).value();
+          final byte[] cached_id = nameCache.get(name);
+          if (cached_id == null) {
+            addIdToCache(name, id);
+            addNameToCache(id, name);
+          } else if (!Arrays.equals(id, cached_id)) {
+            throw new IllegalStateException("WTF?  For kind=" + kind()
+              + " name=" + name + ", we have id=" + Arrays.toString(cached_id)
+              + " in cache, but just scanned id=" + Arrays.toString(id));
+          }
+          names.add(name);
+        }
+      }
+    } catch (HBaseException e) {
+      throw e;
+    } catch (Exception e) {
+      throw new RuntimeException("Should never be here", e);
+    }
+    return names;
+  }
+  
+  /**
    * Reassigns the UID to a different name (non-atomic).
    * <p>
    * Whatever was the UID of {@code oldname} will be given to {@code newname}.

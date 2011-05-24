@@ -20,6 +20,7 @@
 package net.opentsdb.odata;
 
 import java.util.Properties;
+import net.opentsdb.core.TSDB;
 import org.odata4j.producer.ODataProducer;
 import org.odata4j.producer.ODataProducerFactory;
 
@@ -28,10 +29,15 @@ import org.odata4j.producer.ODataProducerFactory;
  * @author htrippaers
  */
 public class OpenTSDBProducerFactory implements ODataProducerFactory {
+    
+    public static String TSDB_INTERFACE = "net.opentsdb.odata.tsdbobject";
 
     @Override
-    public ODataProducer create(Properties arg0) {
-        OpenTSDBProducer producer = new OpenTSDBProducer();
+    public ODataProducer create(Properties props) {
+        if (!props.containsKey(TSDB_INTERFACE)) {
+            throw new IllegalArgumentException("Property net.opentsdb.odata.tsdbobject is not set to in instance of TSDB");
+        }
+        OpenTSDBProducer producer = new OpenTSDBProducer((TSDB)props.get(TSDB_INTERFACE));
         return producer;
     }
 }
