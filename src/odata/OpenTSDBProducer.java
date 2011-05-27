@@ -20,14 +20,8 @@
 package net.opentsdb.odata;
 
 import com.sun.jersey.api.NotFoundException;
-import java.util.logging.Level;
-import java.util.logging.Logger;
-import net.opentsdb.core.TSDB;
 
-import java.util.List;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Map;
+import net.opentsdb.core.TSDB;
 import net.opentsdb.core.Aggregators;
 import net.opentsdb.core.DataPoint;
 import net.opentsdb.core.DataPoints;
@@ -35,13 +29,21 @@ import net.opentsdb.core.Query;
 import net.opentsdb.core.SeekableView;
 import net.opentsdb.uid.NoSuchUniqueName;
 
-import org.hbase.async.HBaseClient;
-import org.hbase.async.KeyValue;
-import org.hbase.async.Scanner;
+import java.util.List;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
+
+import javax.ws.rs.WebApplicationException;
+import net.opentsdb.core.Aggregator;
+import org.joda.time.DateTime;
+
 import org.joda.time.LocalDateTime;
+import org.joda.time.format.DateTimeFormat;
+import org.joda.time.format.DateTimeFormatter;
+
 import org.odata4j.core.ODataConstants;
 import org.odata4j.core.OEntities;
-
 import org.odata4j.core.OEntity;
 import org.odata4j.core.OEntityKey;
 import org.odata4j.core.OLink;
@@ -63,14 +65,16 @@ import org.odata4j.producer.ODataProducer;
 import org.odata4j.producer.QueryInfo;
 import org.odata4j.producer.Responses;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  *
  * @author htrippaers
  */
 public class OpenTSDBProducer implements ODataProducer {
     
-    private final static Logger log = 
-            Logger.getLogger(OpenTSDBProducer.class.getName());
+    private static final Logger LOG = LoggerFactory.getLogger(TSDB.class);
     
     private final TSDB tsdb;
     private final EdmDataServices metadata; 
@@ -85,15 +89,11 @@ public class OpenTSDBProducer implements ODataProducer {
 
     @Override
     public EdmDataServices getMetadata() {
-        log.logp(Level.INFO, this.getClass().getName(), "getMetadata", null);
         return metadata;
     }
 
     @Override
-    public EntitiesResponse getEntities(String entitySetName, QueryInfo queryInfo) {
-        log.logp(Level.INFO, this.getClass().getName(), "getEntities", "entitySetName = {0}, queryInfo = {1}", 
-                new Object[] { entitySetName, queryInfo.toString() });
-        
+    public EntitiesResponse getEntities(String entitySetName, QueryInfo queryInfo) { 
         if ("Metrics".equals(entitySetName)) {
             return getMetrics(entitySetName, queryInfo);
         }
@@ -168,11 +168,11 @@ public class OpenTSDBProducer implements ODataProducer {
 
         /* Workaround till funcions are supported */
         List<String> tskeys = new ArrayList<String>();
-        keys.add("Timestamp");
+        tskeys.add("Timestamp");
         List<EdmProperty> tsproperties = new ArrayList<EdmProperty>();
         tsproperties.add(new EdmProperty("Timestamp", EdmType.DATETIME, false));
         tsproperties.add(new EdmProperty("Value", EdmType.DOUBLE, false));
-        EdmEntityType tset = new EdmEntityType("OpenTSDB", "Alias", "Timeseries", Boolean.FALSE, keys, tsproperties, null);
+        EdmEntityType tset = new EdmEntityType("OpenTSDB", "Alias", "Timeseries", Boolean.FALSE, tskeys, tsproperties, null);
         EdmEntitySet tses = new EdmEntitySet("Timeseries",et);
         entityTypes.add(tset);
         entitySets.add(tses);       
@@ -187,18 +187,16 @@ public class OpenTSDBProducer implements ODataProducer {
         
 
         List<String> names  = tsdb.getMetrics();
-        ArrayList<ArrayList<KeyValue>> rows;
         
         try {
             for (String name : names) {
                     List<OProperty<?>> properties = new ArrayList<OProperty<?>>();
-                    properties.add(OProperties.string("Name", new String(name)));
+                    properties.add(OProperties.string("Name", name));
                     List<OLink> links = new ArrayList<OLink>();
                     items.add(OEntities.create(entitySet, entityKey, properties, links));
             }
         } catch (Exception ex) {
-            /* TODO: some kind of error handing */
-            Logger.getLogger(OpenTSDBProducer.class.getName()).log(Level.SEVERE, null, ex);
+            throw new WebApplicationException(ex);
         }
         
         return Responses.entities(items, entitySet, items.size(), null);
@@ -209,35 +207,52 @@ public class OpenTSDBProducer implements ODataProducer {
         OEntityKey entityKey = OEntityKey.create("Timestamp");
         List<OEntity> items = new ArrayList<OEntity>();
         
+        Map<String,String> tags = new HashMap<String,String>(queryInfo.customOptions);
+        
+        /* remove the known tagsm the remainder is assumed to be tags */
+        if (tags.containsKey("series"))
+            tags.remove("series");
+        if (tags.containsKey("start"))
+            tags.remove("start");
+        if (tags.containsKey("stop"))
+            tags.remove("stop");
+        if (tags.containsKey("aggregator"))
+            tags.remove("aggregator");
+
         /* custom properties define the start and end of the timeseries */
         String seriesName = queryInfo.customOptions.containsKey("series") ?
-                queryInfo.customOptions.get("series") : null;
+                queryInfo.customOptions.get("series") : null;        
         String startTimestamp = queryInfo.customOptions.containsKey("start") ?
                 queryInfo.customOptions.get("start") : null;
         String stopTimestamp = queryInfo.customOptions.containsKey("stop") ?
                 queryInfo.customOptions.get("stop") : null;
-    
 
-        if (seriesName != null) {
-            try {
-                Query query = tsdb.newQuery();
-                Map<String, String> tags = new HashMap<String, String>();
-                query.setTimeSeries(seriesName, tags, Aggregators.SUM, false);
-                query.setStartTime(System.currentTimeMillis() / 1000 - 86400 * 30);
-                query.setEndTime(System.currentTimeMillis() / 1000);
-                DataPoints[] result = query.run();
-                for (DataPoints dps : result) {
-                    SeekableView data = dps.iterator();
-                    while (data.hasNext()) {
-                        DataPoint dp = data.next();
-                        items.add(DataPointToOEntity(dp, entitySet, entityKey));
-                    }
-                }
-            } catch (NoSuchUniqueName ex) {
-                log.log(Level.SEVERE, null, ex);
-            }
+        if (seriesName == null || startTimestamp == null || stopTimestamp == null) {
+            throw new NotFoundException("Invalid parameters, series, start and stop need to be present");
         }
-
+        
+        try {
+            Query query = tsdb.newQuery();
+            Aggregator agg = Aggregators.get(queryInfo.customOptions.containsKey("aggregator") ? queryInfo.customOptions.get("aggregator") : "sum");
+            query.setTimeSeries(seriesName, tags, agg, false);
+            query.setStartTime(parseDateTimeParameter(startTimestamp));
+            query.setEndTime(parseDateTimeParameter(stopTimestamp));
+            DataPoints[] result = query.run();
+            LOG.debug("Returned " + result.length + " DataPoint arrays");
+            for (DataPoints dps : result) {
+                SeekableView data = dps.iterator();
+                while (data.hasNext()) {
+                    DataPoint dp = data.next();
+                    items.add(DataPointToOEntity(dp, entitySet, entityKey));
+                }
+            }
+        } catch (NoSuchUniqueName ex) {
+            // rethrow as WebApplicationException
+            throw new NotFoundException("No timeseries named :" + seriesName);
+        } catch (IllegalArgumentException ex) {
+            // rethrow as WebApplicationException
+            throw new WebApplicationException(ex);
+        }
     
         return Responses.entities(items, entitySet, items.size(), null);
     }
@@ -257,6 +272,18 @@ public class OpenTSDBProducer implements ODataProducer {
         }
         return OEntities.create(entitySet, entityKey, properties, links);
         
+    }
+    
+    /**
+     * Convert a string to a unix timestamp
+     * @param dateTimeParameter formatted as "2011/05/26-10:59:00"
+     * @return seconds since epoch (aka unix timestamp)
+     */
+    private long parseDateTimeParameter(String dateTimeParameter) {
+        assert(dateTimeParameter != null);
+        DateTimeFormatter fmt = DateTimeFormat.forPattern("yyyy/MM/dd-HH:mm:ss");
+        DateTime dt = fmt.parseDateTime(dateTimeParameter);
+        return dt.getMillis() / 1000; /* only interested in seconds */
     }
 }
 
