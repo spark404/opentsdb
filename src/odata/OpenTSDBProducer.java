@@ -209,7 +209,7 @@ public class OpenTSDBProducer implements ODataProducer {
         
         Map<String,String> tags = new HashMap<String,String>(queryInfo.customOptions);
         
-        /* remove the known tagsm the remainder is assumed to be tags */
+        /* remove the known keys, the remainder is assumed to be tags */
         if (tags.containsKey("series"))
             tags.remove("series");
         if (tags.containsKey("start"))
@@ -218,6 +218,8 @@ public class OpenTSDBProducer implements ODataProducer {
             tags.remove("stop");
         if (tags.containsKey("aggregator"))
             tags.remove("aggregator");
+        if (tags.containsKey("rate"))
+            tags.remove("rate");
 
         /* custom properties define the start and end of the timeseries */
         String seriesName = queryInfo.customOptions.containsKey("series") ?
@@ -234,7 +236,8 @@ public class OpenTSDBProducer implements ODataProducer {
         try {
             Query query = tsdb.newQuery();
             Aggregator agg = Aggregators.get(queryInfo.customOptions.containsKey("aggregator") ? queryInfo.customOptions.get("aggregator") : "sum");
-            query.setTimeSeries(seriesName, tags, agg, false);
+            boolean rate = queryInfo.customOptions.containsKey("rate") ? queryInfo.customOptions.get("rate").equalsIgnoreCase("true"): false;
+            query.setTimeSeries(seriesName, tags, agg, rate);
             query.setStartTime(parseDateTimeParameter(startTimestamp));
             query.setEndTime(parseDateTimeParameter(stopTimestamp));
             DataPoints[] result = query.run();
