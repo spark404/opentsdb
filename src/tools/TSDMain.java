@@ -14,6 +14,7 @@ package net.opentsdb.tools;
 
 import java.io.File;
 import java.net.InetSocketAddress;
+import java.net.URI;
 import java.util.concurrent.Executors;
 
 import org.slf4j.Logger;
@@ -134,17 +135,19 @@ final class TSDMain {
       client.setFlushInterval(flush_interval);
       final TSDB tsdb = new TSDB(client, table, uidtable);
       registerShutdownHook(tsdb);
-      final ServerBootstrap server = new ServerBootstrap(factory);
 
-      server.setPipelineFactory(new PipelineFactory(tsdb));
+      final ServerBootstrap server = new ServerBootstrap(factory);
+      final InetSocketAddress addr =
+        new InetSocketAddress(Integer.parseInt(argp.get("--port")));
+      URI uri = new URI("http", null, addr.getHostName(), addr.getPort(), null, null, null);
+
+      server.setPipelineFactory(new PipelineFactory(tsdb, uri));
       server.setOption("child.tcpNoDelay", true);
       server.setOption("child.keepAlive", true);
       server.setOption("reuseAddress", true);
 
-      final InetSocketAddress addr =
-        new InetSocketAddress(Integer.parseInt(argp.get("--port")));
       server.bind(addr);
-      log.info("Ready to serve on " + addr);
+      log.info("Ready to serve on " + uri.toString());
 
     } catch (Throwable e) {
       factory.releaseExternalResources();

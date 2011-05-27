@@ -107,11 +107,11 @@ final class RpcHandler extends SimpleChannelUpstreamHandler {
         handleTelnetRpc(msgevent.getChannel(), (String[]) message);
       } else if (message instanceof HttpRequest) {
           String uri = ((HttpRequest) message).getUri();
-          LOG.info("HTTP Message, uri=" + uri); 
+          LOG.debug("HTTP Message, uri=" + uri); 
         if(!uri.isEmpty() && uri.startsWith("/odata.svc/")) {
             /* This is for the OData Handler */
             String uri2 = uri.substring(10, uri.length());
-            LOG.info("Switching URI to " + uri2);
+            LOG.debug("Rewriting URI before passing to the odata handler: " + uri2);
             
             ((HttpRequest) message).setUri(uri2);
             ctx.sendUpstream(msgevent);

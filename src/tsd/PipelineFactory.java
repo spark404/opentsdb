@@ -14,6 +14,7 @@ package net.opentsdb.tsd;
 
 import com.sun.jersey.api.container.ContainerFactory;
 import com.sun.jersey.server.impl.container.netty.NettyHandlerContainer;
+import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
 import static org.jboss.netty.channel.Channels.pipeline;
@@ -61,7 +62,7 @@ public final class PipelineFactory implements ChannelPipelineFactory {
    * Constructor.
    * @param tsdb The TSDB to use.
    */
-  public PipelineFactory(final TSDB tsdb) {
+  public PipelineFactory(final TSDB tsdb, final URI baseUri) {
     this.tsdb = tsdb;
     this.rpchandler = new RpcHandler(tsdb);
     
@@ -69,7 +70,7 @@ public final class PipelineFactory implements ChannelPipelineFactory {
      * Set properties 
      */
     Map<String, Object> props = new HashMap<String, Object>();
-    props.put(NettyHandlerContainer.PROPERTY_BASE_URI, "http://localhost:4242/odata.svc/"); // TODO: should not be hardcoded
+    props.put(NettyHandlerContainer.PROPERTY_BASE_URI, baseUri.toString() + "/odata.svc/");
     props.put(OpenTSDBProducerFactory.TSDB_INTERFACE, tsdb);
     props.put(ODataProducerProvider.FACTORY_PROPNAME, "net.opentsdb.odata.OpenTSDBProducerFactory");
     
