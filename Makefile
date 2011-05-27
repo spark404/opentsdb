@@ -71,7 +71,6 @@ tsdb_JAVA = \
 	src/uid/UniqueIdInterface.java	\
 	src/odata/OpenTSDBProducer.java	\
 	src/odata/OpenTSDBProducerFactory.java	\
-	src/odata/ODataGrizzlyFactory.java	\
 
 
 tsdb_LIBADD = \
@@ -86,11 +85,10 @@ tsdb_LIBADD = \
 	third_party/zookeeper/zookeeper-3.3.1.jar	\
 	third_party/jersey/jersey-core-1.6.jar	\
 	third_party/jersey/jersey-server-1.6.jar	\
-	third_party/jersey/jersey-grizzly-1.6.jar	\
-	third_party/jersey/grizzly-servlet-webserver-1.9.34.jar	\
 	third_party/odata4j/odata4j-0.4.jar	\
 	third_party/joda-time/joda-time-1.6.2.jar	\
 	third_party/core4j/core4j-0.4.jar	\
+	third_party/jersey/jersey-netty-1.0.0-SNAPSHOT.jar	\
 
 test_JAVA = \
 	src/stats/TestHistogram.java	\
