@@ -32,7 +32,9 @@ import net.opentsdb.uid.NoSuchUniqueName;
 import java.util.List;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Map;
+import java.util.Set;
 
 import javax.ws.rs.WebApplicationException;
 import net.opentsdb.core.Aggregator;
@@ -173,7 +175,7 @@ public class OpenTSDBProducer implements ODataProducer {
         tsproperties.add(new EdmProperty("Timestamp", EdmType.DATETIME, false));
         tsproperties.add(new EdmProperty("Value", EdmType.DOUBLE, false));
         EdmEntityType tset = new EdmEntityType("OpenTSDB", "Alias", "Timeseries", Boolean.FALSE, tskeys, tsproperties, null);
-        EdmEntitySet tses = new EdmEntitySet("Timeseries",et);
+        EdmEntitySet tses = new EdmEntitySet("Timeseries",tset);
         entityTypes.add(tset);
         entitySets.add(tses);       
         
@@ -203,10 +205,7 @@ public class OpenTSDBProducer implements ODataProducer {
     }
     
     private EntitiesResponse getTimeseries(String entitySetName, QueryInfo queryInfo) {
-        EdmEntitySet entitySet = metadata.getEdmEntitySet(entitySetName);
-        OEntityKey entityKey = OEntityKey.create("Timestamp");
-        List<OEntity> items = new ArrayList<OEntity>();
-        
+        List<OEntity> items = new ArrayList<OEntity>();        
         Map<String,String> tags = new HashMap<String,String>(queryInfo.customOptions);
         
         /* remove the known keys, the remainder is assumed to be tags */
@@ -220,35 +219,70 @@ public class OpenTSDBProducer implements ODataProducer {
             tags.remove("aggregator");
         if (tags.containsKey("rate"))
             tags.remove("rate");
+        if (tags.containsKey("downsample"))
+            tags.remove("downsample");
 
-        /* custom properties define the start and end of the timeseries */
-        String seriesName = queryInfo.customOptions.containsKey("series") ?
-                queryInfo.customOptions.get("series") : null;        
-        String startTimestamp = queryInfo.customOptions.containsKey("start") ?
-                queryInfo.customOptions.get("start") : null;
-        String stopTimestamp = queryInfo.customOptions.containsKey("stop") ?
-                queryInfo.customOptions.get("stop") : null;
-
-        if (seriesName == null || startTimestamp == null || stopTimestamp == null) {
-            throw new NotFoundException("Invalid parameters, series, start and stop need to be present");
+        if (!(queryInfo.customOptions.containsKey("series") && queryInfo.customOptions.containsKey("start"))) {
+            throw new NotFoundException("Invalid parameters: series and start need to be present");
         }
+        
+        String seriesName = queryInfo.customOptions.get("series");        
         
         try {
             Query query = tsdb.newQuery();
-            Aggregator agg = Aggregators.get(queryInfo.customOptions.containsKey("aggregator") ? queryInfo.customOptions.get("aggregator") : "sum");
-            boolean rate = queryInfo.customOptions.containsKey("rate") ? queryInfo.customOptions.get("rate").equalsIgnoreCase("true"): false;
+
+            Aggregator agg = Aggregators.get(queryInfo.customOptions.containsKey("aggregator") ? 
+                    queryInfo.customOptions.get("aggregator") : "sum");
+            boolean rate = queryInfo.customOptions.containsKey("rate") ? 
+                    queryInfo.customOptions.get("rate").equalsIgnoreCase("true"): false;
             query.setTimeSeries(seriesName, tags, agg, rate);
-            query.setStartTime(parseDateTimeParameter(startTimestamp));
-            query.setEndTime(parseDateTimeParameter(stopTimestamp));
-            DataPoints[] result = query.run();
-            LOG.debug("Returned " + result.length + " DataPoint arrays");
-            for (DataPoints dps : result) {
+            
+            query.setStartTime(parseDateTimeParameter(queryInfo.customOptions.get("start")));
+            
+            if (queryInfo.customOptions.containsKey("stop"))
+                query.setEndTime(parseDateTimeParameter(queryInfo.customOptions.get("stop")));
+            
+            if (queryInfo.customOptions.containsKey("downsample")) {
+                String[] dsSettings = queryInfo.customOptions.get("downsample").split(":", 2);
+                Aggregator dsAgg = Aggregators.get(dsSettings[0]);
+                int dsInt = Integer.parseInt(dsSettings[1]);
+                query.downsample(dsInt, dsAgg);
+            }
+            
+            DataPoints[] resultSets = query.run();
+            LOG.debug("Returned " + resultSets.length + " DataPoint arrays");
+            /**
+             * Build a list of all common tags across the series
+             * and update the entity set
+             */
+            Set<String> commonTags = new HashSet();
+            for (DataPoints dps : resultSets) {
+                commonTags.addAll(dps.getTags().keySet());
+            }
+            
+            EdmEntitySet entitySet = TagsToEdmEntitySet(commonTags);
+            OEntityKey entityKey = OEntityKey.create("Timestamp");
+            
+            if (LOG.isDebugEnabled()) {
+                StringBuilder str = new StringBuilder("Common tags :");
+                for (String tag : commonTags) {
+                    str.append(" ");
+                    str.append(tag);
+                }
+                LOG.debug(str.toString());
+            }
+
+            for (DataPoints dps : resultSets) {
                 SeekableView data = dps.iterator();
+                Map<String,String> dpTags = dps.getTags();
                 while (data.hasNext()) {
                     DataPoint dp = data.next();
-                    items.add(DataPointToOEntity(dp, entitySet, entityKey));
+                    items.add(DataPointToOEntity(dp, entitySet, entityKey, dpTags));
                 }
             }
+
+            return Responses.entities(items, entitySet, items.size(), null);
+            
         } catch (NoSuchUniqueName ex) {
             // rethrow as WebApplicationException
             throw new NotFoundException("No timeseries named :" + seriesName);
@@ -256,11 +290,22 @@ public class OpenTSDBProducer implements ODataProducer {
             // rethrow as WebApplicationException
             throw new WebApplicationException(ex);
         }
-    
-        return Responses.entities(items, entitySet, items.size(), null);
     }
     
-    private OEntity DataPointToOEntity(DataPoint dp, EdmEntitySet entitySet, OEntityKey entityKey) {
+    private EdmEntitySet TagsToEdmEntitySet(Set<String> tags) {
+            List<String> tskeys = new ArrayList<String>();
+            tskeys.add("Timestamp");
+            List<EdmProperty> tsproperties = new ArrayList<EdmProperty>();
+            tsproperties.add(new EdmProperty("Timestamp", EdmType.DATETIME, false));
+            tsproperties.add(new EdmProperty("Value", EdmType.DOUBLE, false));
+            for (String tag : tags) {
+                tsproperties.add(new EdmProperty(tag, EdmType.STRING, true));
+            }
+            EdmEntityType tset = new EdmEntityType("OpenTSDB", "Alias", "Timeseries", Boolean.FALSE, tskeys, tsproperties, null);
+            return new EdmEntitySet("Timeseries", tset);
+    }
+    
+    private OEntity DataPointToOEntity(DataPoint dp, EdmEntitySet entitySet, OEntityKey entityKey, Map<String,String> tags) {
         List<OProperty<?>> properties = new ArrayList<OProperty<?>>();
         List<OLink> links = new ArrayList<OLink>();
         
@@ -272,6 +317,9 @@ public class OpenTSDBProducer implements ODataProducer {
         }
         else {
             properties.add(OProperties.double_("Value", dp.doubleValue()));
+        }
+        for (String tag: tags.keySet()) {
+            properties.add(OProperties.string(tag, tags.containsKey(tag) ? tags.get(tag) : null));
         }
         return OEntities.create(entitySet, entityKey, properties, links);
         
