@@ -63,6 +63,7 @@ import org.odata4j.edm.EdmType;
 import org.odata4j.producer.BaseResponse;
 import org.odata4j.producer.EntitiesResponse;
 import org.odata4j.producer.EntityResponse;
+import org.odata4j.producer.InlineCount;
 import org.odata4j.producer.ODataProducer;
 import org.odata4j.producer.QueryInfo;
 import org.odata4j.producer.Responses;
@@ -76,10 +77,12 @@ import org.slf4j.LoggerFactory;
  */
 public class OpenTSDBProducer implements ODataProducer {
     
-    private static final Logger LOG = LoggerFactory.getLogger(TSDB.class);
+    private static final Logger LOG = LoggerFactory.getLogger(OpenTSDBProducer.class);
     
     private final TSDB tsdb;
     private final EdmDataServices metadata; 
+    
+    private Map<String, CachedResponse> cache;
     
     public OpenTSDBProducer(final TSDB tsdb) {
         super();
@@ -87,6 +90,7 @@ public class OpenTSDBProducer implements ODataProducer {
         // Create the TSDB instance
         this.tsdb = tsdb;
         metadata = InitializeMetaData();
+        cache = new HashMap<String, CachedResponse>();
     }
 
     @Override
@@ -96,6 +100,8 @@ public class OpenTSDBProducer implements ODataProducer {
 
     @Override
     public EntitiesResponse getEntities(String entitySetName, QueryInfo queryInfo) { 
+        cleanCache();
+        
         if ("Metrics".equals(entitySetName)) {
             return getMetrics(entitySetName, queryInfo);
         }
@@ -208,6 +214,9 @@ public class OpenTSDBProducer implements ODataProducer {
         List<OEntity> items = new ArrayList<OEntity>();        
         Map<String,String> tags = new HashMap<String,String>(queryInfo.customOptions);
         
+        /** Get some timing figures */
+        long now = System.currentTimeMillis();
+        
         /* remove the known keys, the remainder is assumed to be tags */
         if (tags.containsKey("series"))
             tags.remove("series");
@@ -225,10 +234,12 @@ public class OpenTSDBProducer implements ODataProducer {
         if (!(queryInfo.customOptions.containsKey("series") && queryInfo.customOptions.containsKey("start"))) {
             throw new NotFoundException("Invalid parameters: series and start need to be present");
         }
-        
+
         String seriesName = queryInfo.customOptions.get("series");        
         
         try {
+            DataPoints[] resultSets;
+            if (!cache.containsKey(CachedResponse.createCacheHash(queryInfo))) {
             Query query = tsdb.newQuery();
 
             Aggregator agg = Aggregators.get(queryInfo.customOptions.containsKey("aggregator") ? 
@@ -249,8 +260,18 @@ public class OpenTSDBProducer implements ODataProducer {
                 query.downsample(dsInt, dsAgg);
             }
             
-            DataPoints[] resultSets = query.run();
-            LOG.debug("Returned " + resultSets.length + " DataPoint arrays");
+             resultSets = query.run();
+             CachedResponse cr = new CachedResponse(queryInfo, resultSets);
+             cache.put(cr.getCacheHash(),cr);
+            }
+            else {
+                LOG.debug("Cache hit");
+                resultSets = cache.get(CachedResponse.createCacheHash(queryInfo)).getCachedData();
+            }
+            
+            LOG.debug("Returned " + resultSets.length + " DataPoint arrays in " + (System.currentTimeMillis()-now) + "ms");
+            now = System.currentTimeMillis();
+            
             /**
              * Build a list of all common tags across the series
              * and update the entity set
@@ -272,16 +293,24 @@ public class OpenTSDBProducer implements ODataProducer {
                 LOG.debug(str.toString());
             }
 
+            int itemCount = 0;
             for (DataPoints dps : resultSets) {
+                itemCount += dps.size();
                 SeekableView data = dps.iterator();
                 Map<String,String> dpTags = dps.getTags();
                 while (data.hasNext()) {
+                    if ((queryInfo.top != null) && (queryInfo.top <= items.size())) {
+                        break;
+                    }
                     DataPoint dp = data.next();
                     items.add(DataPointToOEntity(dp, entitySet, entityKey, dpTags));
                 }
             }
-
-            return Responses.entities(items, entitySet, items.size(), null);
+            LOG.debug("Prepared OData reponse ( " + items.size() + " of " + itemCount + " items) in " + (System.currentTimeMillis()-now) + "ms");
+            
+            return Responses.entities(items, entitySet, 
+                    (queryInfo.inlineCount == InlineCount.ALLPAGES) ? itemCount : null, 
+                    null);
             
         } catch (NoSuchUniqueName ex) {
             // rethrow as WebApplicationException
@@ -335,6 +364,16 @@ public class OpenTSDBProducer implements ODataProducer {
         DateTimeFormatter fmt = DateTimeFormat.forPattern("yyyy/MM/dd-HH:mm:ss");
         DateTime dt = fmt.parseDateTime(dateTimeParameter);
         return dt.getMillis() / 1000; /* only interested in seconds */
+    }
+    
+    private void cleanCache() {
+        LOG.debug("Cleaning cache");
+        long maxage = System.currentTimeMillis() - 1800000; // 30 minutes
+        for (Map.Entry<String, CachedResponse> entry : cache.entrySet()) {
+            if (entry.getValue().getCachedTimestamp() < maxage) {
+                cache.remove(entry.getKey());
+            }
+        }
     }
 }
 
