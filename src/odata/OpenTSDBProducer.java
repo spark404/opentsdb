@@ -20,6 +20,7 @@
 package net.opentsdb.odata;
 
 import com.sun.jersey.api.NotFoundException;
+import java.lang.Thread.State;
 
 import net.opentsdb.core.TSDB;
 import net.opentsdb.core.Aggregators;
@@ -35,6 +36,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import javax.ws.rs.WebApplicationException;
 import net.opentsdb.core.Aggregator;
@@ -80,7 +82,8 @@ public class OpenTSDBProducer implements ODataProducer {
     private static final Logger LOG = LoggerFactory.getLogger(OpenTSDBProducer.class);
     
     private final TSDB tsdb;
-    private final EdmDataServices metadata; 
+    private final EdmDataServices metadata;
+    private final Thread cleaner;
     
     private Map<String, CachedResponse> cache;
     
@@ -90,7 +93,11 @@ public class OpenTSDBProducer implements ODataProducer {
         // Create the TSDB instance
         this.tsdb = tsdb;
         metadata = InitializeMetaData();
-        cache = new HashMap<String, CachedResponse>();
+        cache = new ConcurrentHashMap<String, CachedResponse>();
+        
+        cleaner = new Thread(new CacheCleaner(cache));
+        cleaner.setName("CacheCleaner");
+        cleaner.setDaemon(true);
     }
 
     @Override
@@ -100,7 +107,9 @@ public class OpenTSDBProducer implements ODataProducer {
 
     @Override
     public EntitiesResponse getEntities(String entitySetName, QueryInfo queryInfo) { 
-        cleanCache();
+        if (cleaner.getState() == State.NEW) {
+            cleaner.start();
+        }
         
         if ("Metrics".equals(entitySetName)) {
             return getMetrics(entitySetName, queryInfo);
@@ -366,14 +375,35 @@ public class OpenTSDBProducer implements ODataProducer {
         return dt.getMillis() / 1000; /* only interested in seconds */
     }
     
-    private void cleanCache() {
-        LOG.debug("Cleaning cache");
-        long maxage = System.currentTimeMillis() - 1800000; // 30 minutes
-        for (Map.Entry<String, CachedResponse> entry : cache.entrySet()) {
-            if (entry.getValue().getCachedTimestamp() < maxage) {
-                cache.remove(entry.getKey());
+    private class CacheCleaner implements Runnable {
+
+        private final Map<String, CachedResponse> cache;
+        
+        public CacheCleaner(Map<String, CachedResponse> cache) {
+            this.cache = cache;
+        }
+        
+        @Override
+        @SuppressWarnings("SleepWhileInLoop")
+        public void run() {
+            // Run every 10 minutes
+            try {
+                while (true) {
+                    Thread.sleep(600000);
+                    LOG.debug("Checking the cache for old entries");
+                    long maxage = System.currentTimeMillis() - 600000; // 10 minutes
+                    for (Map.Entry<String, CachedResponse> entry : cache.entrySet()) {
+                        if (entry.getValue().getCachedTimestamp() < maxage) {
+                            LOG.debug("Removing entry " + entry.getKey());
+                            cache.remove(entry.getKey());
+                        }
+                    }
+                }
+            } catch (InterruptedException e) {
+                LOG.debug("Interupted during sleep : " + e.getMessage());
             }
         }
     }
+    
 }
 
