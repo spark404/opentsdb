@@ -5,6 +5,8 @@
 package net.opentsdb.odata;
 
 import java.util.Map;
+import java.util.SortedMap;
+import java.util.TreeMap;
 import net.opentsdb.core.DataPoints;
 import org.odata4j.producer.QueryInfo;
 
@@ -25,7 +27,8 @@ public class CachedResponse {
     public static String createCacheHash(QueryInfo query) {
         StringBuilder hashinput = new StringBuilder();
         
-        for (Map.Entry<String, String> entry : query.customOptions.entrySet()) {
+        SortedMap<String,String> s = new TreeMap<String,String>(query.customOptions);
+        for (Map.Entry<String, String> entry : s.entrySet()) {
             hashinput.append(entry.getKey());
             hashinput.append(entry.getValue());
         }
