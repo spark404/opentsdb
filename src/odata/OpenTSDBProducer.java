@@ -285,7 +285,7 @@ public class OpenTSDBProducer implements ODataProducer {
              * Build a list of all common tags across the series
              * and update the entity set
              */
-            Set<String> commonTags = new HashSet();
+            Set<String> commonTags = new HashSet<String>();
             for (DataPoints dps : resultSets) {
                 commonTags.addAll(dps.getTags().keySet());
             }
