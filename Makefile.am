@@ -73,7 +73,11 @@ tsdb_SRC := \
 	src/uid/NoSuchUniqueId.java	\
 	src/uid/NoSuchUniqueName.java	\
 	src/uid/UniqueId.java	\
-	src/uid/UniqueIdInterface.java
+	src/uid/UniqueIdInterface.java	\
+	src/odata/CachedResponse.java	\
+	src/odata/OpenTSDBProducer.java	\
+	src/odata/OpenTSDBProducerFactory.java
+
 
 tsdb_DEPS = \
 	$(HBASEASYNC)	\
@@ -84,7 +88,13 @@ tsdb_DEPS = \
 	$(NETTY)	\
 	$(SLF4J_API)	\
 	$(SUASYNC)	\
-	$(ZOOKEEPER)
+	$(ZOOKEEPER) \
+	$(CORE4J) \
+	$(ODATA4J) \
+	$(JODATIME) \
+        $(JERSEYCORE) \
+        $(JERSEYSERVER) \
+	$(JERSEYNETTY)
 
 # Install all the .jar files in pkgdatadir.
 pkgdata_DATA = $(tsdb_DEPS) $(jar)
