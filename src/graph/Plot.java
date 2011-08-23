@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2010  StumbleUpon, Inc.
+// Copyright (C) 2010  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
@@ -217,7 +217,7 @@ public final class Plot {
     final PrintWriter gp = new PrintWriter(script_path);
     try {
       // XXX don't hardcode all those settings.  At least not like that.
-      gp.append("set terminal png size ")
+      gp.append("set term png small size ")
         // Why the fuck didn't they also add methods for numbers?
         .append(Short.toString(width)).append(",")
         .append(Short.toString(height)).append("\n"

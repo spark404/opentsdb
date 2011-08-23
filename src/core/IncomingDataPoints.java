@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2010  StumbleUpon, Inc.
+// Copyright (C) 2010  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
@@ -104,7 +104,7 @@ final class IncomingDataPoints implements WritableDataPoints {
     Tags.validateString("metric name", metric);
     for (final Map.Entry<String, String> tag : tags.entrySet()) {
       Tags.validateString("tag name", tag.getKey());
-      Tags.validateString("tag name", tag.getValue());
+      Tags.validateString("tag value", tag.getValue());
     }
   }
 

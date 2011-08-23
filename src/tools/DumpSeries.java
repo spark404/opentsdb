@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2010  StumbleUpon, Inc.
+// Copyright (C) 2010  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
@@ -159,7 +159,7 @@ final class DumpSeries {
     }
     final byte[] qualifier = kv.qualifier();
     final short deltaflags = Bytes.getShort(qualifier);
-    final short delta = (short) (deltaflags >>> 4);
+    final short delta = (short) ((0x0000FFFF & deltaflags) >>> 4);
     final byte[] cell = kv.value();
     final long lvalue = Core.extractLValue(deltaflags, kv);
     if (importformat) {

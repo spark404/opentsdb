@@ -1,5 +1,5 @@
 // This file is part of OpenTSDB.
-// Copyright (C) 2010  StumbleUpon, Inc.
+// Copyright (C) 2010  The OpenTSDB Authors.
 //
 // This program is free software: you can redistribute it and/or modify it
 // under the terms of the GNU Lesser General Public License as published by
@@ -18,6 +18,7 @@ import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.PrintWriter;
+import java.net.URL;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -125,17 +126,7 @@ final class GraphHandler implements HttpRpc {
     if (end_time == -1) {
       end_time = now;
     }
-    // If the end time is in the future (1), make the graph uncacheable.
-    // Otherwise, if the end time is far enough in the past (2) such that
-    // no TSD can still be writing to rows for that time span, make the graph
-    // cacheable for a day since it's very unlikely that any data will change
-    // for this time span.
-    // Otherwise (3), allow the client to cache the graph for ~0.1% of the
-    // time span covered by the request e.g., for 1h of data, it's OK to
-    // serve something 3s stale, for 1d of data, 84s stale.
-    final int max_age = (end_time > now ? 0                              // (1)
-                         : (end_time < now - Const.MAX_TIMESPAN ? 86400  // (2)
-                            : (int) (end_time - start_time) >> 10));     // (3)
+    final int max_age = computeMaxAge(query, start_time, end_time, now);
     if (!nocache && isDiskCacheHit(query, end_time, max_age, basepath)) {
       return;
     }
@@ -205,6 +196,40 @@ final class GraphHandler implements HttpRpc {
     }
   }
 
+  /**
+   * Decides how long we're going to allow the client to cache our response.
+   * <p>
+   * Based on the query, we'll decide whether or not we want to allow the
+   * client to cache our response and for how long.
+   * @param query The query to serve.
+   * @param start_time The start time on the query (32-bit unsigned int, secs).
+   * @param end_time The end time on the query (32-bit unsigned int, seconds).
+   * @param now The current time (32-bit unsigned int, seconds).
+   * @return A positive integer, in seconds.
+   */
+  private static int computeMaxAge(final HttpQuery query,
+                                   final long start_time, final long end_time,
+                                   final long now) {
+    // If the end time is in the future (1), make the graph uncacheable.
+    // Otherwise, if the end time is far enough in the past (2) such that
+    // no TSD can still be writing to rows for that time span and it's not
+    // specified in a relative fashion (3) (e.g. "1d-ago"), make the graph
+    // cacheable for a day since it's very unlikely that any data will change
+    // for this time span.
+    // Otherwise (4), allow the client to cache the graph for ~0.1% of the
+    // time span covered by the request e.g., for 1h of data, it's OK to
+    // serve something 3s stale, for 1d of data, 84s stale.
+    if (end_time > now) {                            // (1)
+      return 0;
+    } else if (end_time < now - Const.MAX_TIMESPAN   // (2)
+               && !isRelativeDate(query, "start")    // (3)
+               && !isRelativeDate(query, "end")) {
+      return 86400;
+    } else {                                         // (4)
+      return (int) (end_time - start_time) >> 10;
+    }
+  }
+
   // Runs Gnuplot in a subprocess to generate the graph.
   private static final class RunGnuplot implements Runnable {
 
@@ -254,7 +279,7 @@ final class GraphHandler implements HttpRpc {
           if (tags == null || tags.isEmpty()) {
             buf.append("[]");
           } else {
-            query.toJsonArray(tags, buf);
+            HttpQuery.toJsonArray(tags, buf);
           }
           buf.append(',');
         }
@@ -269,12 +294,12 @@ final class GraphHandler implements HttpRpc {
             query.sendFile(basepath + ".png", max_age);
           } else {
             if (nplotted > 0) {
-              query.sendReply(query.makePage("TSDB Query", "Your graph is ready",
+              query.sendReply(HttpQuery.makePage("TSDB Query", "Your graph is ready",
                 "<img src=\"" + query.request().getUri() + "&amp;png\"/><br/>"
                 + "<small>(" + nplotted + " points plotted in "
                 + query.processingTimeMillis() + "ms)</small>"));
             } else {
-              query.sendReply(query.makePage("TSDB Query", "No results found",
+              query.sendReply(HttpQuery.makePage("TSDB Query", "No results found",
                 "<blockquote><h1>No results</h1>Your query didn't return"
                 + " anything.  Try changing some parameters.</blockquote>"));
             }
@@ -360,7 +385,7 @@ final class GraphHandler implements HttpRpc {
                  || query.hasQueryStringParam("ascii")) {
         query.sendFile(cachepath, max_age);
       } else {
-        query.sendReply(query.makePage("TSDB Query", "Your graph is ready",
+        query.sendReply(HttpQuery.makePage("TSDB Query", "Your graph is ready",
             "<img src=\"" + query.request().getUri() + "&amp;png\"/><br/>"
             + "<small>(served from disk cache)</small>"));
       }
@@ -382,7 +407,7 @@ final class GraphHandler implements HttpRpc {
     } else if (query.hasQueryStringParam("png")) {
       query.sendReply(" ");  // Send back an empty response...
     } else {
-        query.sendReply(query.makePage("TSDB Query", "No results",
+        query.sendReply(HttpQuery.makePage("TSDB Query", "No results",
             "Sorry, your query didn't return anything.<br/>"
             + "<small>(served from disk cache)</small>"));
     }
@@ -672,10 +697,8 @@ final class GraphHandler implements HttpRpc {
                         final Plot plot) throws IOException {
     final int nplotted = plot.dumpToFiles(basepath);
     final long start_time = System.nanoTime();
-    final Process gnuplot = new ProcessBuilder(
-        // XXX Java Kludge XXX
-        "./src/graph/mygnuplot.sh", basepath + ".out", basepath + ".err",
-                                    basepath + ".gnuplot").start();
+    final Process gnuplot = new ProcessBuilder(GNUPLOT,
+      basepath + ".out", basepath + ".err", basepath + ".gnuplot").start();
     final int rv;
     try {
       rv = gnuplot.waitFor();  // Couldn't find how to do this asynchronously.
@@ -883,6 +906,24 @@ final class GraphHandler implements HttpRpc {
   }
 
   /**
+   * Returns whether or not a date is specified in a relative fashion.
+   * <p>
+   * A date is specified in a relative fashion if it ends in "-ago",
+   * e.g. "1d-ago" is the same as "24h-ago".
+   * @param query The HTTP query from which to get the query string parameter.
+   * @param paramname The name of the query string parameter.
+   * @return {@code true} if the parameter is passed and is a relative date.
+   * Note the method doesn't attempt to validate the relative date.  So this
+   * function can return true on something that looks like a relative date,
+   * but is actually invalid once we really try to parse it.
+   */
+  private static boolean isRelativeDate(final HttpQuery query,
+                                        final String paramname) {
+    final String date = query.getQueryStringParam(paramname);
+    return date == null || date.endsWith("-ago");
+  }
+
+  /**
    * Returns a timestamp from a date specified in a query string parameter.
    * @param query The HTTP query from which to get the query string parameter.
    * @param paramname The name of the query string parameter.
@@ -902,7 +943,7 @@ final class GraphHandler implements HttpRpc {
     try {
       final SimpleDateFormat fmt = new SimpleDateFormat("yyyy/MM/dd-HH:mm:ss");
       final long timestamp = fmt.parse(date).getTime() / 1000;
-      if (timestamp <= 0) {
+      if (timestamp < 0) {
         throw new BadRequestException("Bad " + paramname + " date: " + date);
       }
       return timestamp;
@@ -923,6 +964,42 @@ final class GraphHandler implements HttpRpc {
     public Thread newThread(final Runnable r) {
       return new Thread(r, "Gnuplot #" + id.incrementAndGet());
     }
+  }
+
+  /** Name of the wrapper script we use to execute Gnuplot.  */
+  private static final String WRAPPER = "mygnuplot.sh";
+  /** Path to the wrapper script.  */
+  private static final String GNUPLOT;
+  static {
+    GNUPLOT = findGnuplotHelperScript();
+  }
+
+  /**
+   * Iterate through the class path and look for the Gnuplot helper script.
+   * @return The path to the wrapper script.
+   */
+  private static String findGnuplotHelperScript() {
+    final URL url = GraphHandler.class.getClassLoader().getResource(WRAPPER);
+    if (url == null) {
+      throw new RuntimeException("Couldn't find " + WRAPPER + " on the"
+        + " CLASSPATH: " + System.getProperty("java.class.path"));
+    }
+    final String path = url.getFile();
+    LOG.debug("Using Gnuplot wrapper at {}", path);
+    final File file = new File(path);
+    final String error;
+    if (!file.exists()) {
+      error = "non-existent";
+    } else if (!file.canExecute()) {
+      error = "non-executable";
+    } else if (!file.canRead()) {
+      error = "unreadable";
+    } else {
+      return path;
+    }
+    throw new RuntimeException("The " + WRAPPER + " found on the"
+      + " CLASSPATH (" + path + ") is a " + error + " file...  WTF?"
+      + "  CLASSPATH=" + System.getProperty("java.class.path"));
   }
 
   // ---------------- //
