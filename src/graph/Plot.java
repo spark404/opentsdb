@@ -90,14 +90,6 @@ public final class Plot {
     this.end_time = (int) end_time;
   }
 
-  private long startTime() {
-    return start_time & 0x00000000FFFFFFFFL;
-  }
-
-  private long endTime() {
-    return end_time & 0x00000000FFFFFFFFL;
-  }
-
   /**
    * Sets the global parameters for this plot.
    * @param params Each entry is a Gnuplot setting that will be written as-is
@@ -223,8 +215,6 @@ public final class Plot {
         .append(Short.toString(height)).append("\n"
                 + "set xdata time\n"
                 + "set timefmt \"%s\"\n"
-                + "set format x \"").append(xFormat())
-                                    .append("\"\n"
                 + "set xtic rotate\n"
                 + "set output \"").append(basepath + ".png").append("\"\n"
                 + "set xrange [\"")
@@ -232,6 +222,9 @@ public final class Plot {
         .append("\":\"")
         .append(String.valueOf(end_time + utc_offset))
         .append("\"]\n");
+      if (!params.containsKey("format x")) {
+        gp.append("set format x \"").append(xFormat()).append("\"\n");
+      }
       final int nseries = datapoints.size();
       if (nseries > 0) {
         gp.write("set grid\n"

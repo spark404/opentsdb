@@ -51,8 +51,6 @@ public final class PipelineFactory implements ChannelPipelineFactory {
   private final ConnectionManager connmgr = new ConnectionManager();
   private final DetectHttpOrRpc HTTP_OR_RPC = new DetectHttpOrRpc();
 
-  /** The TSDB to use. */
-  private final TSDB tsdb;
   /** Stateless handler for RPCs. */
   private final RpcHandler rpchandler;
   /** Handler for OData */
@@ -63,7 +61,6 @@ public final class PipelineFactory implements ChannelPipelineFactory {
    * @param tsdb The TSDB to use.
    */
   public PipelineFactory(final TSDB tsdb, final URI baseUri) {
-    this.tsdb = tsdb;
     this.rpchandler = new RpcHandler(tsdb);
     
     /**

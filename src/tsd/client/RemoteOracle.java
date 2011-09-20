@@ -12,13 +12,11 @@
 // see <http://www.gnu.org/licenses/>.
 package tsd.client;
 
-import java.util.ArrayList;
 import java.util.HashMap;
 
 import com.google.gwt.http.client.RequestBuilder;
 import com.google.gwt.http.client.RequestCallback;
 import com.google.gwt.http.client.RequestException;
-import com.google.gwt.http.client.Response;
 import com.google.gwt.json.client.JSONArray;
 import com.google.gwt.json.client.JSONParser;
 import com.google.gwt.json.client.JSONValue;
@@ -42,8 +40,6 @@ import com.google.gwt.user.client.ui.TextBoxBase;
  */
 final class RemoteOracle extends SuggestOracle {
 
-  private static final int MAX_SUGGESTIONS = 25;  // = UniqueId.MAX_SUGGESTIONS
-
   private static final String SUGGEST_URL = "/suggest?type=";  // + type&q=foo
 
   /**
@@ -61,8 +57,6 @@ final class RemoteOracle extends SuggestOracle {
   private final String type;
   private final MultiWordSuggestOracle cache;
   private final QueriesSeen queries_seen;
-  private final ArrayList<Suggestion> default_suggestions =
-    new ArrayList<Suggestion>(MAX_SUGGESTIONS);
 
   /** Which widget are we wrapping to provide suggestions. */
   private HasText requester;
