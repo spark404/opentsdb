@@ -13,7 +13,8 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this library.  If not, see <http://www.gnu.org/licenses/>.
 
-AC_INIT([opentsdb], [1.0], [opentsdb@googlegroups.com])
+# Semantic Versioning (see http://semver.org/).
+AC_INIT([opentsdb], [1.1.0], [opentsdb@googlegroups.com])
 AC_CONFIG_AUX_DIR([build-aux])
 AM_INIT_AUTOMAKE([foreign])
 
@@ -25,7 +26,7 @@ AC_CONFIG_FILES([build-aux/fetchdep.sh], [chmod +x build-aux/fetchdep.sh])
 # For people with Automake <= 1.9.6
 AC_PROG_MKDIR_P
 TSDB_FIND_PROG([md5], [md5sum md5 gmd5sum digest])
-if test x"$MD5" = x'digest'; then
+if test x`basename "$MD5"` = x'digest'; then
   MD5='digest -a md5'
 fi
 TSDB_FIND_PROG([java])
