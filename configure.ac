@@ -33,6 +33,7 @@ TSDB_FIND_PROG([java])
 TSDB_FIND_PROG([javac])
 TSDB_FIND_PROG([jar])
 TSDB_FIND_PROG([gnuplot])
+TSDB_FIND_PROG([tar], [gtar tar])
 AC_PATH_PROG([JAVADOC], [javadoc], [])
 AM_MISSING_PROG([JAVADOC], [javadoc])
 
