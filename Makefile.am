@@ -1,8 +1,8 @@
-# Copyright (C) 2011  The OpenTSDB Authors.
+# Copyright (C) 2011-2012  The OpenTSDB Authors.
 #
 # This library is free software: you can redistribute it and/or modify it
 # under the terms of the GNU Lesser General Public License as published
-# by the Free Software Foundation, either version 3 of the License, or
+# by the Free Software Foundation; either version 2.1 of the License, or
 # (at your option) any later version.
 #
 # This library is distributed in the hope that it will be useful,
@@ -101,6 +101,7 @@ tsdb_DEPS = \
 pkgdata_DATA = $(tsdb_DEPS) $(jar)
 
 test_SRC := \
+	src/core/TestAggregators.java \
 	src/core/TestCompactionQueue.java	\
 	src/core/TestTags.java	\
 	src/stats/TestHistogram.java	\
