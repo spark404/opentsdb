@@ -369,17 +369,17 @@ clean-local:
 
 # Assume we are executed from the build dir
 tarball:
-	test -d "../dist" && rm -rf "../dist"
+	if test -d "../dist" ; then rm -rf "../dist"; fi
 	mkdir "../dist"
 
 	mkdir "../dist/opentsdb-$(PACKAGE_VERSION)"
 
 	cp -rf staticroot ../dist/opentsdb-$(PACKAGE_VERSION)/staticroot
-	mkdir ../dist/opentsdb-1.1.0/lib
+	mkdir ../dist/opentsdb-$(PACKAGE_VERSION)/lib
 	cp tsdb-1.1.0.jar ../dist/opentsdb-$(PACKAGE_VERSION)/lib
 	( \
+	cp $(tsdb_DEPS) ../dist/opentsdb-$(PACKAGE_VERSION)/lib ;\
 	cd ..  ;\
-	cp $(tsdb_DEPS) dist/opentsdb-$(PACKAGE_VERSION)/lib ;\
 	cp src/logback.xml dist/opentsdb-$(PACKAGE_VERSION)/lib ;\
 	cp src/mygnuplot.sh dist/opentsdb-$(PACKAGE_VERSION)/lib ;\
 	)
