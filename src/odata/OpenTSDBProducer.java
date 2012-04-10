@@ -36,10 +36,16 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.SortedMap;
+import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 
 import javax.ws.rs.WebApplicationException;
 import net.opentsdb.core.Aggregator;
+import net.sf.ehcache.Cache;
+import net.sf.ehcache.CacheManager;
+import net.sf.ehcache.Element;
+
 import org.joda.time.DateTime;
 
 import org.joda.time.LocalDateTime;
@@ -91,12 +97,18 @@ public class OpenTSDBProducer implements ODataProducer {
     
     private final TSDB tsdb;
     private EdmDataServices metadata;
+    private final Cache queryCache;
     
     public OpenTSDBProducer(final TSDB tsdb) {
         super();
 
         // Create the TSDB instance
         this.tsdb = tsdb;
+        
+        // Setup ehcache
+        CacheManager cacheManager = CacheManager.create();
+        queryCache = new Cache("queryCache", 10, false, false, 600, 2);
+        cacheManager.addCache(queryCache);
     }
 
 	@Override
@@ -109,6 +121,7 @@ public class OpenTSDBProducer implements ODataProducer {
 	@Override
 	public void close() {
 		LOG.debug("Entering close");
+		CacheManager.getInstance().shutdown();
 	}
 
 	@Override
@@ -274,7 +287,9 @@ public class OpenTSDBProducer implements ODataProducer {
 
 		try {
 			DataPoints[] resultSets;
-			if (true) { // Used to be cache check
+			String cacheKey = createCacheHash(queryInfo);
+			if (! queryCache.isKeyInCache(cacheKey)) { 
+				LOG.debug("Cache miss");
 				Query query = tsdb.newQuery();
 
 				Aggregator agg = Aggregators.get(queryInfo.customOptions
@@ -300,13 +315,10 @@ public class OpenTSDBProducer implements ODataProducer {
 				}
 
 				resultSets = query.run();
-				// CachedResponse cr = new CachedResponse(queryInfo,
-				// resultSets);
-				// cache.put(cr.getCacheHash(),cr);
+				queryCache.put(new Element(cacheKey, resultSets));
 			} else {
 				LOG.debug("Cache hit");
-				// resultSets =
-				// cache.get(CachedResponse.createCacheHash(queryInfo)).getCachedData();
+				resultSets = (DataPoints[]) queryCache.get(cacheKey).getObjectValue();
 			}
 
 			LOG.info("Returned " + resultSets.length + " DataPoint arrays in "
@@ -427,5 +439,23 @@ public class OpenTSDBProducer implements ODataProducer {
 		DateTime dt = fmt.parseDateTime(dateTimeParameter);
 		return dt.getMillis() / 1000; /* only interested in seconds */
 	}
+	
+    /**
+     * The function generates the unique id for the cache entry.
+     * @param query
+     * @return 
+     */
+    public static String createCacheHash(QueryInfo query) {
+        StringBuilder hashinput = new StringBuilder();
+        
+        SortedMap<String,String> s = new TreeMap<String,String>(query.customOptions);
+        for (Map.Entry<String, String> entry : s.entrySet()) {
+            hashinput.append(entry.getKey());
+            hashinput.append(entry.getValue());
+        }
+        
+        return hashinput.toString();
+    }
+	
 
 }
