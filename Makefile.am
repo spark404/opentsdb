@@ -93,7 +93,8 @@ tsdb_DEPS = \
 	$(SUASYNC)	\
 	$(ZOOKEEPER) \
 	$(ODATA4J) \
-	$(JERSEYNETTY)
+	$(JERSEYNETTY) \
+	$(EHCACHE)
 
 # Install all the .jar files in pkgdatadir.
 pkgdata_DATA = $(tsdb_DEPS) $(jar)

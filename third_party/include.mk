@@ -31,3 +31,4 @@ include third_party/suasync/include.mk
 include third_party/zookeeper/include.mk
 include third_party/odata4j/include.mk
 include third_party/jersey-netty/include.mk
+include third_party/ehcache/include.mk
