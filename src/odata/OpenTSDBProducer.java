@@ -49,7 +49,9 @@ import org.joda.time.format.DateTimeFormatter;
 import org.odata4j.core.ODataConstants;
 import org.odata4j.core.OEntities;
 import org.odata4j.core.OEntity;
+import org.odata4j.core.OEntityId;
 import org.odata4j.core.OEntityKey;
+import org.odata4j.core.OFunctionParameter;
 import org.odata4j.core.OLink;
 import org.odata4j.core.OProperties;
 import org.odata4j.core.OProperty;
@@ -59,16 +61,22 @@ import org.odata4j.edm.EdmDataServices;
 import org.odata4j.edm.EdmEntityContainer;
 import org.odata4j.edm.EdmEntitySet;
 import org.odata4j.edm.EdmEntityType;
+import org.odata4j.edm.EdmFunctionImport;
 import org.odata4j.edm.EdmProperty;
 import org.odata4j.edm.EdmSchema;
+import org.odata4j.edm.EdmSimpleType;
 import org.odata4j.edm.EdmType;
 import org.odata4j.producer.BaseResponse;
+import org.odata4j.producer.CountResponse;
 import org.odata4j.producer.EntitiesResponse;
+import org.odata4j.producer.EntityIdResponse;
+import org.odata4j.producer.EntityQueryInfo;
 import org.odata4j.producer.EntityResponse;
 import org.odata4j.producer.InlineCount;
 import org.odata4j.producer.ODataProducer;
 import org.odata4j.producer.QueryInfo;
 import org.odata4j.producer.Responses;
+import org.odata4j.producer.edm.MetadataProducer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -82,129 +90,143 @@ public class OpenTSDBProducer implements ODataProducer {
     private static final Logger LOG = LoggerFactory.getLogger(OpenTSDBProducer.class);
     
     private final TSDB tsdb;
-    private final EdmDataServices metadata;
-    private final Thread cleaner;
-    
-    private Map<String, CachedResponse> cache;
+    private EdmDataServices metadata;
     
     public OpenTSDBProducer(final TSDB tsdb) {
         super();
 
         // Create the TSDB instance
         this.tsdb = tsdb;
-        metadata = InitializeMetaData();
-        cache = new ConcurrentHashMap<String, CachedResponse>();
-        
-        cleaner = new Thread(new CacheCleaner(cache));
-        cleaner.setName("CacheCleaner");
-        cleaner.setDaemon(true);
     }
 
-    @Override
-    public EdmDataServices getMetadata() {
-        return metadata;
-    }
+	@Override
+	public BaseResponse callFunction(EdmFunctionImport arg0,
+			Map<String, OFunctionParameter> arg1, QueryInfo arg2) {
+		LOG.debug("Entering callFunction (EdmFunctionImport, Map, QueryInfo)");
+		throw new UnsupportedOperationException("Not supported yet.");
+	}
 
-    @Override
-    public EntitiesResponse getEntities(String entitySetName, QueryInfo queryInfo) { 
-        if (cleaner.getState() == State.NEW) {
-            cleaner.start();
-        }
-        
-        if ("Metrics".equals(entitySetName)) {
-            return getMetrics(entitySetName, queryInfo);
-        }
-        else if ("Timeseries".equals(entitySetName)) {
-            return getTimeseries(entitySetName, queryInfo);
-        }
-        throw new NotFoundException("No entity named :" + entitySetName);
-    }
+	@Override
+	public void close() {
+		LOG.debug("Entering close");
+	}
 
-    @Override
-    public EntityResponse getEntity(String entitySetName, OEntityKey entityKey) {
-        throw new UnsupportedOperationException("Not supported yet.");
-    }
+	@Override
+	public EntityResponse createEntity(String arg0, OEntity arg1) {
+		LOG.debug("Entering createEntity (String, OEntity");
+		throw new UnsupportedOperationException("Not supported yet.");
+	}
 
-    @Override
-    public BaseResponse getNavProperty(String entitySetName, OEntityKey entityKey, String navProp, QueryInfo queryInfo) {
-        throw new UnsupportedOperationException("Not supported yet.");
-    }
+	@Override
+	public EntityResponse createEntity(String arg0, OEntityKey arg1,
+			String arg2, OEntity arg3) {
+		LOG.debug("Entering createEntity (String, OEntityKey, String, OEntity)");
+		throw new UnsupportedOperationException("Not supported yet.");
+	}
 
-    @Override
-    public void close() {
-        throw new UnsupportedOperationException("Not supported yet.");
-    }
+	@Override
+	public void createLink(OEntityId arg0, String arg1, OEntityId arg2) {
+		LOG.debug("Entering createLink");
+		throw new UnsupportedOperationException("Not supported yet.");
+	}
 
-    @Override
-    public EntityResponse createEntity(String entitySetName, OEntity entity) {
-        throw new UnsupportedOperationException("Not supported yet.");
-    }
+	@Override
+	public void deleteEntity(String arg0, OEntityKey arg1) {
+		LOG.debug("Entering deleteEntity");
+		throw new UnsupportedOperationException("Not supported yet.");
+	}
 
-    @Override
-    public EntityResponse createEntity(String entitySetName, OEntityKey entityKey, String navProp, OEntity entity) {
-        throw new UnsupportedOperationException("Not supported yet.");
-    }
+	@Override
+	public void deleteLink(OEntityId arg0, String arg1, OEntityKey arg2) {
+		LOG.debug("Entering deleteLink");
+		throw new UnsupportedOperationException("Not supported yet.");
+	}
 
-    @Override
-    public void deleteEntity(String entitySetName, OEntityKey entityKey) {
-        throw new UnsupportedOperationException("Not supported yet.");
-    }
+	@Override
+	public EntitiesResponse getEntities(String entitySetName, QueryInfo queryInfo) {
+		LOG.debug("Entering getEntities (String, QueryInfo)");
+		if ("MetricList".equals(entitySetName)) {
+			return getMetrics(entitySetName, queryInfo);
+		}
+		else if ("Timeseries".equals(entitySetName)) {
+			return getTimeseries(entitySetName, queryInfo);
+		}
+		throw new NotFoundException("No entity named :" + entitySetName);
+	}
 
-    @Override
-    public void mergeEntity(String entitySetName, OEntity entity) {
-        throw new UnsupportedOperationException("Not supported yet.");
-    }
+	@Override
+	public CountResponse getEntitiesCount(String arg0, QueryInfo arg1) {
+		LOG.debug("Entering getEntitiesCount (String, QueryInfo)");
+		throw new UnsupportedOperationException("Not supported yet.");
+	}
 
-    @Override
-    public void updateEntity(String entitySetName, OEntity entity) {
-        throw new UnsupportedOperationException("Not supported yet.");
-    }
- 
-    private EdmDataServices InitializeMetaData() {
-        List<EdmSchema> schemas = new ArrayList<EdmSchema>();
-        List<EdmEntityContainer> containers = new ArrayList<EdmEntityContainer>();
-        List<EdmEntitySet> entitySets = new ArrayList<EdmEntitySet>();
-        List<EdmEntityType> entityTypes = new ArrayList<EdmEntityType>();
-        List<EdmAssociation> associations = new ArrayList<EdmAssociation>();
-        List<EdmAssociationSet> associationSets = new ArrayList<EdmAssociationSet>();
-        
-        EdmEntityContainer container = new EdmEntityContainer("Container", true, null, entitySets, associationSets, null);
-        containers.add(container);
+	@Override
+	public EntityResponse getEntity(String arg0, OEntityKey arg1,
+			EntityQueryInfo arg2) {
+		LOG.debug("Entering getEntity (String, OEntityKey, EntityQueryInfo)");
+		throw new UnsupportedOperationException("Not supported yet.");
+	}
 
-        EdmSchema schema = new EdmSchema("OpenTSDB", null, entityTypes, null, associations, containers);
-        schemas.add(schema);
-        
-        List<String> keys = new ArrayList<String>();
-        keys.add("Name");
-        List<EdmProperty> properties = new ArrayList<EdmProperty>();
-        properties.add(new EdmProperty("Name", EdmType.STRING, false));
-        EdmEntityType et = new EdmEntityType("OpenTSDB", "Alias", "Metrics", Boolean.FALSE, keys, properties, null);
-        EdmEntitySet es = new EdmEntitySet("Metrics",et);
-        entityTypes.add(et);
-        entitySets.add(es);
+	@Override
+	public EntityIdResponse getLinks(OEntityId arg0, String arg1) {
+		LOG.debug("Entering getLinks (OEntityId, String)");
+		throw new UnsupportedOperationException("Not supported yet.");
+	}
 
-        /* Workaround till funcions are supported */
-        List<String> tskeys = new ArrayList<String>();
-        tskeys.add("Timestamp");
-        List<EdmProperty> tsproperties = new ArrayList<EdmProperty>();
-        tsproperties.add(new EdmProperty("Timestamp", EdmType.DATETIME, false));
-        tsproperties.add(new EdmProperty("Value", EdmType.DOUBLE, false));
-        EdmEntityType tset = new EdmEntityType("OpenTSDB", "Alias", "Timeseries", Boolean.FALSE, tskeys, tsproperties, null);
-        EdmEntitySet tses = new EdmEntitySet("Timeseries",tset);
-        entityTypes.add(tset);
-        entitySets.add(tses);       
-        
-        return new EdmDataServices(ODataConstants.DATA_SERVICE_VERSION,schemas);
-    }
-    
-    private EntitiesResponse getMetrics(String entitySetName, QueryInfo queryInfo) {
+	@Override
+	public EdmDataServices getMetadata() {
+		LOG.debug("Entering getMetadata");
+		if (metadata == null) {
+			metadata = new OpenTSDBEdmGenerator().generateEdm(null).build();
+		}
+		return metadata;
+	}
+
+	@Override
+	public MetadataProducer getMetadataProducer() {
+		LOG.debug("Entering getMetadataProducer");
+		throw new UnsupportedOperationException("Not supported yet.");
+	}
+
+	@Override
+	public BaseResponse getNavProperty(String arg0, OEntityKey arg1,
+			String arg2, QueryInfo arg3) {
+		LOG.debug("Entering getNavProperty");
+		throw new UnsupportedOperationException("Not supported yet.");
+	}
+
+	@Override
+	public CountResponse getNavPropertyCount(String arg0, OEntityKey arg1,
+			String arg2, QueryInfo arg3) {
+		LOG.debug("Entering getNavPropertyCount");
+		throw new UnsupportedOperationException("Not supported yet.");
+	}
+
+	@Override
+	public void mergeEntity(String arg0, OEntity arg1) {
+		LOG.debug("Entering mergeEntity");
+		throw new UnsupportedOperationException("Not supported yet.");
+	}
+
+	@Override
+	public void updateEntity(String arg0, OEntity arg1) {
+		LOG.debug("Entering updateEntity");
+		throw new UnsupportedOperationException("Not supported yet.");
+	}
+
+	@Override
+	public void updateLink(OEntityId arg0, String arg1, OEntityKey arg2,
+			OEntityId arg3) {
+		LOG.debug("Entering updateLink");
+		throw new UnsupportedOperationException("Not supported yet.");
+	}
+	
+	private EntitiesResponse getMetrics(String entitySetName, QueryInfo queryInfo) {
         EdmEntitySet entitySet = metadata.getEdmEntitySet(entitySetName);
         List<OEntity> items = new ArrayList<OEntity>();
         OEntityKey entityKey = OEntityKey.create("Name");
-        
 
         List<String> names  = tsdb.getMetrics();
-        
         try {
             for (String name : names) {
                     List<OProperty<?>> properties = new ArrayList<OProperty<?>>();
@@ -217,193 +239,193 @@ public class OpenTSDBProducer implements ODataProducer {
         }
         
         return Responses.entities(items, entitySet, items.size(), null);
-    }
-    
-    private EntitiesResponse getTimeseries(String entitySetName, QueryInfo queryInfo) {
-        List<OEntity> items = new ArrayList<OEntity>();        
-        Map<String,String> tags = new HashMap<String,String>(queryInfo.customOptions);
-        
-        /** Get some timing figures */
-        long now = System.currentTimeMillis();
-        
-        /* remove the known keys, the remainder is assumed to be tags */
-        if (tags.containsKey("series"))
-            tags.remove("series");
-        if (tags.containsKey("start"))
-            tags.remove("start");
-        if (tags.containsKey("stop"))
-            tags.remove("stop");
-        if (tags.containsKey("aggregator"))
-            tags.remove("aggregator");
-        if (tags.containsKey("rate"))
-            tags.remove("rate");
-        if (tags.containsKey("downsample"))
-            tags.remove("downsample");
+	}
+	
+	private EntitiesResponse getTimeseries(String entitySetName,
+			QueryInfo queryInfo) {
+		List<OEntity> items = new ArrayList<OEntity>();
+		Map<String, String> tags = new HashMap<String, String>(
+				queryInfo.customOptions);
 
-        if (!(queryInfo.customOptions.containsKey("series") && queryInfo.customOptions.containsKey("start"))) {
-            throw new NotFoundException("Invalid parameters: series and start need to be present");
-        }
+		/** Get some timing figures */
+		long now = System.currentTimeMillis();
 
-        String seriesName = queryInfo.customOptions.get("series");        
-        
-        try {
-            DataPoints[] resultSets;
-            if (!cache.containsKey(CachedResponse.createCacheHash(queryInfo))) {
-            Query query = tsdb.newQuery();
+		/* remove the known keys, the remainder is assumed to be tags */
+		if (tags.containsKey("series"))
+			tags.remove("series");
+		if (tags.containsKey("start"))
+			tags.remove("start");
+		if (tags.containsKey("stop"))
+			tags.remove("stop");
+		if (tags.containsKey("aggregator"))
+			tags.remove("aggregator");
+		if (tags.containsKey("rate"))
+			tags.remove("rate");
+		if (tags.containsKey("downsample"))
+			tags.remove("downsample");
 
-            Aggregator agg = Aggregators.get(queryInfo.customOptions.containsKey("aggregator") ? 
-                    queryInfo.customOptions.get("aggregator") : "sum");
-            boolean rate = queryInfo.customOptions.containsKey("rate") ? 
-                    queryInfo.customOptions.get("rate").equalsIgnoreCase("true"): false;
-            query.setTimeSeries(seriesName, tags, agg, rate);
-            
-            query.setStartTime(parseDateTimeParameter(queryInfo.customOptions.get("start")));
-            
-            if (queryInfo.customOptions.containsKey("stop"))
-                query.setEndTime(parseDateTimeParameter(queryInfo.customOptions.get("stop")));
-            
-            if (queryInfo.customOptions.containsKey("downsample")) {
-                String[] dsSettings = queryInfo.customOptions.get("downsample").split(":", 2);
-                Aggregator dsAgg = Aggregators.get(dsSettings[0]);
-                int dsInt = Integer.parseInt(dsSettings[1]);
-                query.downsample(dsInt, dsAgg);
-            }
-            
-             resultSets = query.run();
-             CachedResponse cr = new CachedResponse(queryInfo, resultSets);
-             cache.put(cr.getCacheHash(),cr);
-            }
-            else {
-                LOG.debug("Cache hit");
-                resultSets = cache.get(CachedResponse.createCacheHash(queryInfo)).getCachedData();
-            }
-            
-            LOG.debug("Returned " + resultSets.length + " DataPoint arrays in " + (System.currentTimeMillis()-now) + "ms");
-            now = System.currentTimeMillis();
-            
-            /**
-             * Build a list of all common tags across the series
-             * and update the entity set
-             */
-            Set<String> commonTags = new HashSet<String>();
-            for (DataPoints dps : resultSets) {
-                commonTags.addAll(dps.getTags().keySet());
-            }
-            
-            EdmEntitySet entitySet = TagsToEdmEntitySet(commonTags);
-            OEntityKey entityKey = OEntityKey.create("Timestamp");
-            
-            if (LOG.isDebugEnabled()) {
-                StringBuilder str = new StringBuilder("Common tags :");
-                for (String tag : commonTags) {
-                    str.append(" ");
-                    str.append(tag);
-                }
-                LOG.debug(str.toString());
-            }
+		if (!(queryInfo.customOptions.containsKey("series") && queryInfo.customOptions
+				.containsKey("start"))) {
+			throw new NotFoundException(
+					"Invalid parameters: series and start need to be present");
+		}
 
-            int itemCount = 0;
-            for (DataPoints dps : resultSets) {
-                itemCount += dps.size();
-                SeekableView data = dps.iterator();
-                Map<String,String> dpTags = dps.getTags();
-                while (data.hasNext()) {
-                    if ((queryInfo.top != null) && (queryInfo.top <= items.size())) {
-                        break;
-                    }
-                    DataPoint dp = data.next();
-                    items.add(DataPointToOEntity(dp, entitySet, entityKey, dpTags));
-                }
-            }
-            LOG.debug("Prepared OData reponse ( " + items.size() + " of " + itemCount + " items) in " + (System.currentTimeMillis()-now) + "ms");
-            
-            return Responses.entities(items, entitySet, 
-                    (queryInfo.inlineCount == InlineCount.ALLPAGES) ? itemCount : null, 
-                    null);
-            
-        } catch (NoSuchUniqueName ex) {
-            // rethrow as WebApplicationException
-            throw new NotFoundException("No timeseries named :" + seriesName);
-        } catch (IllegalArgumentException ex) {
-            // rethrow as WebApplicationException
-            throw new WebApplicationException(ex);
-        }
-    }
-    
-    private EdmEntitySet TagsToEdmEntitySet(Set<String> tags) {
-            List<String> tskeys = new ArrayList<String>();
-            tskeys.add("Timestamp");
-            List<EdmProperty> tsproperties = new ArrayList<EdmProperty>();
-            tsproperties.add(new EdmProperty("Timestamp", EdmType.DATETIME, false));
-            tsproperties.add(new EdmProperty("Value", EdmType.DOUBLE, false));
-            for (String tag : tags) {
-                tsproperties.add(new EdmProperty(tag, EdmType.STRING, true));
-            }
-            EdmEntityType tset = new EdmEntityType("OpenTSDB", "Alias", "Timeseries", Boolean.FALSE, tskeys, tsproperties, null);
-            return new EdmEntitySet("Timeseries", tset);
-    }
-    
-    private OEntity DataPointToOEntity(DataPoint dp, EdmEntitySet entitySet, OEntityKey entityKey, Map<String,String> tags) {
-        List<OProperty<?>> properties = new ArrayList<OProperty<?>>();
-        List<OLink> links = new ArrayList<OLink>();
-        
-        LocalDateTime ldt = new LocalDateTime(dp.timestamp() * 1000);
-        properties.add(OProperties.datetime("Timestamp", ldt));
-        if (dp.isInteger()) {
-            Long value = dp.longValue();
-            properties.add(OProperties.double_("Value", value.doubleValue()));
-        }
-        else {
-            properties.add(OProperties.double_("Value", dp.doubleValue()));
-        }
-        for (String tag: tags.keySet()) {
-            properties.add(OProperties.string(tag, tags.containsKey(tag) ? tags.get(tag) : null));
-        }
-        return OEntities.create(entitySet, entityKey, properties, links);
-        
-    }
-    
-    /**
-     * Convert a string to a unix timestamp
-     * @param dateTimeParameter formatted as "2011/05/26-10:59:00"
-     * @return seconds since epoch (aka unix timestamp)
-     */
-    private long parseDateTimeParameter(String dateTimeParameter) {
-        assert(dateTimeParameter != null);
-        DateTimeFormatter fmt = DateTimeFormat.forPattern("yyyy/MM/dd-HH:mm:ss");
-        DateTime dt = fmt.parseDateTime(dateTimeParameter);
-        return dt.getMillis() / 1000; /* only interested in seconds */
-    }
-    
-    private class CacheCleaner implements Runnable {
+		String seriesName = queryInfo.customOptions.get("series");
 
-        private final Map<String, CachedResponse> cache;
-        
-        public CacheCleaner(Map<String, CachedResponse> cache) {
-            this.cache = cache;
-        }
-        
-        @Override
-        @SuppressWarnings("SleepWhileInLoop")
-        public void run() {
-            // Run every 10 minutes
-            try {
-                while (true) {
-                    Thread.sleep(600000);
-                    LOG.debug("Checking the cache for old entries");
-                    long maxage = System.currentTimeMillis() - 600000; // 10 minutes
-                    for (Map.Entry<String, CachedResponse> entry : cache.entrySet()) {
-                        if (entry.getValue().getCachedTimestamp() < maxage) {
-                            LOG.debug("Removing entry " + entry.getKey());
-                            cache.remove(entry.getKey());
-                        }
-                    }
-                }
-            } catch (InterruptedException e) {
-                LOG.debug("Interupted during sleep : " + e.getMessage());
-            }
-        }
-    }
-    
+		try {
+			DataPoints[] resultSets;
+			if (true) { // Used to be cache check
+				Query query = tsdb.newQuery();
+
+				Aggregator agg = Aggregators.get(queryInfo.customOptions
+						.containsKey("aggregator") ? queryInfo.customOptions
+						.get("aggregator") : "sum");
+				boolean rate = queryInfo.customOptions.containsKey("rate") ? queryInfo.customOptions
+						.get("rate").equalsIgnoreCase("true") : false;
+				query.setTimeSeries(seriesName, tags, agg, rate);
+
+				query.setStartTime(parseDateTimeParameter(queryInfo.customOptions
+						.get("start")));
+
+				if (queryInfo.customOptions.containsKey("stop"))
+					query.setEndTime(parseDateTimeParameter(queryInfo.customOptions
+							.get("stop")));
+
+				if (queryInfo.customOptions.containsKey("downsample")) {
+					String[] dsSettings = queryInfo.customOptions.get(
+							"downsample").split(":", 2);
+					Aggregator dsAgg = Aggregators.get(dsSettings[0]);
+					int dsInt = Integer.parseInt(dsSettings[1]);
+					query.downsample(dsInt, dsAgg);
+				}
+
+				resultSets = query.run();
+				// CachedResponse cr = new CachedResponse(queryInfo,
+				// resultSets);
+				// cache.put(cr.getCacheHash(),cr);
+			} else {
+				LOG.debug("Cache hit");
+				// resultSets =
+				// cache.get(CachedResponse.createCacheHash(queryInfo)).getCachedData();
+			}
+
+			LOG.info("Returned " + resultSets.length + " DataPoint arrays in "
+					+ (System.currentTimeMillis() - now) + "ms");
+			now = System.currentTimeMillis();
+
+			/**
+			 * Build a list of all common tags across the series and update the
+			 * entity set
+			 */
+			Set<String> commonTags = new HashSet<String>();
+			for (DataPoints dps : resultSets) {
+				commonTags.addAll(dps.getTags().keySet());
+			}
+
+			EdmEntitySet entitySet = tagsToEdmEntitySet(commonTags);
+			OEntityKey entityKey = OEntityKey.create("Timestamp");
+
+			if (LOG.isDebugEnabled()) {
+				StringBuilder str = new StringBuilder("Common tags :");
+				for (String tag : commonTags) {
+					str.append(" ");
+					str.append(tag);
+				}
+				LOG.debug(str.toString());
+			}
+
+			int itemCount = 0;
+			for (DataPoints dps : resultSets) {
+				itemCount += dps.size();
+				SeekableView data = dps.iterator();
+				Map<String, String> dpTags = dps.getTags();
+				while (data.hasNext()) {
+					if ((queryInfo.top != null)
+							&& (queryInfo.top <= items.size())) {
+						break;
+					}
+					DataPoint dp = data.next();
+					items.add(DataPointToOEntity(dp, entitySet, entityKey,
+							seriesName, dpTags));
+				}
+			}
+			LOG.info("Prepared OData reponse ( " + items.size() + " of "
+					+ itemCount + " items) in "
+					+ (System.currentTimeMillis() - now) + "ms");
+
+			return Responses.entities(items, entitySet,
+					(queryInfo.inlineCount == InlineCount.ALLPAGES) ? itemCount
+							: null, null);
+
+		} catch (NoSuchUniqueName ex) {
+			// rethrow as WebApplicationException
+			throw new NotFoundException("No timeseries named :" + seriesName);
+		} catch (IllegalArgumentException ex) {
+			// rethrow as WebApplicationException
+			throw new WebApplicationException(ex);
+		}
+	}
+
+	private EdmEntitySet tagsToEdmEntitySet(Set<String> tags) {
+		/**
+		 * The type definition for TimeSeries
+		 */
+		List<EdmProperty.Builder> properties = new ArrayList<EdmProperty.Builder>();
+		properties.add(EdmProperty.newBuilder("Name").setName("Name")
+				.setType(EdmSimpleType.STRING));
+		properties.add(EdmProperty.newBuilder("Timestamp").setName("Timestamp")
+				.setType(EdmSimpleType.DATETIME));
+		properties.add(EdmProperty.newBuilder("Value").setName("Value")
+				.setType(EdmSimpleType.DOUBLE));
+		for (String tag : tags) {
+			properties.add(EdmProperty.newBuilder(tag).setName(tag)
+					.setType(EdmSimpleType.STRING));
+		}
+		EdmEntityType.Builder timeSeriesType = EdmEntityType.newBuilder()
+				.setName("TimeSeries").setNamespace("OpenTSDB")
+				.addKeys(new String[] { "Name", "Timestamp" })
+				.addProperties(properties);
+		EdmEntitySet.Builder timeSeriesSet = EdmEntitySet.newBuilder()
+				.setName("TimeSeries").setEntityType(timeSeriesType);
+
+		return timeSeriesSet.build();
+	}
+
+	private OEntity DataPointToOEntity(DataPoint dp, EdmEntitySet entitySet,
+			OEntityKey entityKey, String metric, Map<String, String> tags) {
+		List<OProperty<?>> properties = new ArrayList<OProperty<?>>();
+		List<OLink> links = new ArrayList<OLink>();
+
+		properties.add(OProperties.string("Name", metric));
+		LocalDateTime ldt = new LocalDateTime(dp.timestamp() * 1000);
+		properties.add(OProperties.datetime("Timestamp", ldt));
+		if (dp.isInteger()) {
+			Long value = dp.longValue();
+			properties.add(OProperties.double_("Value", value.doubleValue()));
+		} else {
+			properties.add(OProperties.double_("Value", dp.doubleValue()));
+		}
+		for (String tag : tags.keySet()) {
+			properties.add(OProperties.string(tag,
+					tags.containsKey(tag) ? tags.get(tag) : null));
+		}
+		return OEntities.create(entitySet, entityKey, properties, links);
+
+	}
+
+	/**
+	 * Convert a string to a unix timestamp
+	 * 
+	 * @param dateTimeParameter
+	 *            formatted as "2011/05/26-10:59:00"
+	 * @return seconds since epoch (aka unix timestamp)
+	 */
+	private long parseDateTimeParameter(String dateTimeParameter) {
+		assert (dateTimeParameter != null);
+		DateTimeFormatter fmt = DateTimeFormat
+				.forPattern("yyyy/MM/dd-HH:mm:ss");
+		DateTime dt = fmt.parseDateTime(dateTimeParameter);
+		return dt.getMillis() / 1000; /* only interested in seconds */
+	}
+
 }
-

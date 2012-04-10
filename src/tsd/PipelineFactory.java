@@ -13,6 +13,8 @@
 package net.opentsdb.tsd;
 
 import com.sun.jersey.api.container.ContainerFactory;
+import com.sun.jersey.api.core.ClassNamesResourceConfig;
+import com.sun.jersey.api.core.ResourceConfig;
 import com.sun.jersey.server.impl.container.netty.NettyHandlerContainer;
 import java.net.URI;
 import java.util.HashMap;
@@ -31,9 +33,11 @@ import org.jboss.netty.handler.codec.http.HttpRequestDecoder;
 import org.jboss.netty.handler.codec.http.HttpResponseEncoder;
 
 import net.opentsdb.core.TSDB;
+import net.opentsdb.odata.OpenTSDBProducer;
 import net.opentsdb.odata.OpenTSDBProducerFactory;
-import org.odata4j.producer.resources.ODataProducerProvider;
-import org.odata4j.producer.resources.ODataResourceConfig;
+import org.odata4j.jersey.producer.resources.ODataProducerProvider;
+import org.odata4j.jersey.producer.resources.ODataApplication;
+//import org.odata4j.producer.resources.ODataResourceConfig;
 
 /**
  * Creates a newly configured {@link ChannelPipeline} for a new channel.
@@ -71,13 +75,18 @@ public final class PipelineFactory implements ChannelPipelineFactory {
     props.put(OpenTSDBProducerFactory.TSDB_INTERFACE, tsdb);
     props.put(ODataProducerProvider.FACTORY_PROPNAME, "net.opentsdb.odata.OpenTSDBProducerFactory");
     
+    ODataProducerProvider.setInstance(new OpenTSDBProducer(tsdb));
+    
     /**
      * Create the resource configuration
      */
-    ODataResourceConfig rc = new ODataResourceConfig();
-    rc.setPropertiesAndFeatures(props);
+    //ResourceConfig rc = new ClassNamesResourceConfig(props);
+    //rc.setPropertiesAndFeatures(props);
     
-    this.odatahandler = ContainerFactory.createContainer(NettyHandlerContainer.class, rc);
+    ODataApplication app = new ODataApplication();
+    
+    this.odatahandler = ContainerFactory.createContainer(NettyHandlerContainer.class, app.getClasses());
+    
   }
 
   @Override

@@ -13,8 +13,8 @@
 # You should have received a copy of the GNU Lesser General Public License
 # along with this library.  If not, see <http://www.gnu.org/licenses/>.
 
-ODATA4J_VERSION := 0.4
-ODATA4J := third_party/odata4j/odata4j-$(ODATA4J_VERSION).jar
+ODATA4J_VERSION := 0.6.0
+ODATA4J := third_party/odata4j/odata4j-$(ODATA4J_VERSION)-core.jar
 ODATA4J_BASE_URL := http://www.strocamp.net/opentsdb/thirdparty
 
 $(ODATA4J): $(ODATA4J).md5
