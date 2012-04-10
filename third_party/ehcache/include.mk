@@ -14,7 +14,7 @@
 # along with this library.  If not, see <http://www.gnu.org/licenses/>.
 
 EHCACHE_VERSION := 2.5.1
-EHCACHE := third_party/odata4j/ehcache-core-$(EHCACHE_VERSION).jar
+EHCACHE := third_party/ehcache/ehcache-core-$(EHCACHE_VERSION).jar
 EHCACHE_BASE_URL := http://www.strocamp.net/opentsdb/thirdparty
 
 $(EHCACHE): $(EHCACHE).md5

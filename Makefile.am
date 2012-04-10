@@ -75,7 +75,6 @@ tsdb_SRC := \
 	src/uid/NoSuchUniqueName.java	\
 	src/uid/UniqueId.java	\
 	src/uid/UniqueIdInterface.java	\
-	src/odata/CachedResponse.java	\
 	src/odata/OpenTSDBProducer.java	\
 	src/odata/OpenTSDBProducerFactory.java \
 	src/odata/OpenTSDBEdmGenerator.java
