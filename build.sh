@@ -5,3 +5,4 @@ test -d build || mkdir build
 cd build
 test -f Makefile || ../configure "$@"
 exec make "$@"
+exec make tarball

@@ -77,7 +77,9 @@ tsdb_SRC := \
 	src/uid/UniqueIdInterface.java	\
 	src/odata/CachedResponse.java	\
 	src/odata/OpenTSDBProducer.java	\
-	src/odata/OpenTSDBProducerFactory.java
+	src/odata/OpenTSDBProducerFactory.java \
+	src/odata/OpenTSDBEdmGenerator.java
+	
 
 
 tsdb_DEPS = \
@@ -90,11 +92,7 @@ tsdb_DEPS = \
 	$(SLF4J_API)	\
 	$(SUASYNC)	\
 	$(ZOOKEEPER) \
-	$(CORE4J) \
 	$(ODATA4J) \
-	$(JODATIME) \
-        $(JERSEYCORE) \
-        $(JERSEYSERVER) \
 	$(JERSEYNETTY)
 
 # Install all the .jar files in pkgdatadir.
@@ -376,7 +374,7 @@ tarball:
 
 	cp -rf staticroot ../dist/opentsdb-$(PACKAGE_VERSION)/staticroot
 	mkdir ../dist/opentsdb-$(PACKAGE_VERSION)/lib
-	cp tsdb-1.1.0.jar ../dist/opentsdb-$(PACKAGE_VERSION)/lib
+	cp tsdb-$(PACKAGE_VERSION).jar ../dist/opentsdb-$(PACKAGE_VERSION)/lib
 	( \
 	cp $(tsdb_DEPS) ../dist/opentsdb-$(PACKAGE_VERSION)/lib ;\
 	cd ..  ;\
