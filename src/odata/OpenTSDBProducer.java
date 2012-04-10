@@ -107,7 +107,9 @@ public class OpenTSDBProducer implements ODataProducer {
         
         // Setup ehcache
         CacheManager cacheManager = CacheManager.create();
-        queryCache = new Cache("queryCache", 10, false, false, 600, 2);
+        queryCache = new Cache("queryCache", 10, false, false, 
+        		3600, // the default amount of time to live for an element from its creation date
+        		600); // the default amount of time to live for an element from its last accessed or modified date 
         cacheManager.addCache(queryCache);
     }
 
@@ -284,11 +286,17 @@ public class OpenTSDBProducer implements ODataProducer {
 		}
 
 		String seriesName = queryInfo.customOptions.get("series");
+		
+		if (LOG.isDebugEnabled()) {
+			for (Object key : queryCache.getKeys()) {
+				LOG.debug("In cache : " +  key + " / " + queryCache.get(key));
+			}
+		}
 
 		try {
 			DataPoints[] resultSets;
 			String cacheKey = createCacheHash(queryInfo);
-			if (! queryCache.isKeyInCache(cacheKey)) { 
+			if (! queryCache.isKeyInCache((Object)cacheKey)) { 
 				LOG.debug("Cache miss");
 				Query query = tsdb.newQuery();
 
@@ -315,10 +323,17 @@ public class OpenTSDBProducer implements ODataProducer {
 				}
 
 				resultSets = query.run();
-				queryCache.put(new Element(cacheKey, resultSets));
+				Element cacheItem = new  Element((Object)cacheKey, (Object)resultSets);
+				if (cacheItem == null) {
+					LOG.warn("Failed to create element for " + cacheKey);
+				}
+				else {
+					LOG.info("Adding " + cacheItem.getObjectKey() + " to the cache");
+					queryCache.put(cacheItem);
+				}
 			} else {
 				LOG.debug("Cache hit");
-				resultSets = (DataPoints[]) queryCache.get(cacheKey).getObjectValue();
+				resultSets = (DataPoints[]) queryCache.get((Object)cacheKey).getObjectValue();
 			}
 
 			LOG.info("Returned " + resultSets.length + " DataPoint arrays in "
