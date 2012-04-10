@@ -29,8 +29,5 @@ include third_party/powermock/include.mk
 include third_party/slf4j/include.mk
 include third_party/suasync/include.mk
 include third_party/zookeeper/include.mk
-include third_party/core4j/include.mk
 include third_party/odata4j/include.mk
-include third_party/joda-time/include.mk
-include third_party/jersey/include.mk
 include third_party/jersey-netty/include.mk
