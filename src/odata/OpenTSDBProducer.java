@@ -296,7 +296,7 @@ public class OpenTSDBProducer implements ODataProducer {
 		try {
 			DataPoints[] resultSets;
 			String cacheKey = createCacheHash(queryInfo);
-			if (! queryCache.isKeyInCache((Object)cacheKey)) { 
+			if (! queryCache.isElementInMemory((Object)cacheKey)) { 
 				LOG.debug("Cache miss");
 				Query query = tsdb.newQuery();
 
