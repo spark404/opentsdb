@@ -60,17 +60,34 @@ public class OpenTSDBEdmGenerator implements EdmGenerator {
 		EdmProperty.Builder timeSeriesValueProperty = EdmProperty.newBuilder("Value")
 				.setName("Value")
 				.setType(EdmSimpleType.DOUBLE);
+		
+		EdmProperty.Builder[] properties = new EdmProperty.Builder[19];
+		properties[0] = timeSeriesNameProperty;
+		properties[1] = timeSeriesTimestampProperty;
+		properties[2] = timeSeriesValueProperty;
+		
+		for (int i=0; i<16; i++)
+		{
+			String name = "tag"+(i+1);
+			EdmProperty.Builder tag = EdmProperty.newBuilder(name)
+					.setName(name)
+					.setType(EdmSimpleType.STRING);
+			
+			properties[i+3]=tag;
+		}
+		
 		EdmEntityType.Builder timeSeriesType = EdmEntityType.newBuilder()
 				.setName("TimeSeries")
 				.setNamespace(namespace)
 				.addKeys(new String[] {"Name", "Timestamp"})
-				.addProperties(new EdmProperty.Builder[] {timeSeriesNameProperty, timeSeriesValueProperty});
+				.addProperties(properties);
+		
 		EdmEntitySet.Builder timeSeriesSet = EdmEntitySet.newBuilder()
 				.setName("TimeSeries")
 				.setEntityType(timeSeriesType);
+		
 		entityTypes.add(timeSeriesType);
 		entitySets.add(timeSeriesSet);
-		
 		
 		EdmEntityContainer.Builder container = EdmEntityContainer.newBuilder()
 				.setName(namespace + "Entities")
@@ -89,8 +106,6 @@ public class OpenTSDBEdmGenerator implements EdmGenerator {
 		EdmDataServices.Builder rt = EdmDataServices.newBuilder()
 				.addSchemas(schemas);
 		
-		
 		return rt;
 	}
-
 }
