@@ -99,6 +99,8 @@ final class TSDMain {
     argp.addOption("--flush-interval", "MSEC",
                    "Maximum time for which a new data point can be buffered"
                    + " (default: " + DEFAULT_FLUSH_INTERVAL + ").");
+    argp.addOption("--public-hostname", "Public hostname to use in odata response");
+    argp.addOption("--public-port", "Public port to use in odata response");
     CliOptions.addAutoMetricFlag(argp);
     args = CliOptions.parse(argp, args);
     if (args == null || !argp.has("--port")
