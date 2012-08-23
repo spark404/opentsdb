@@ -99,6 +99,8 @@ final class TSDMain {
     argp.addOption("--flush-interval", "MSEC",
                    "Maximum time for which a new data point can be buffered"
                    + " (default: " + DEFAULT_FLUSH_INTERVAL + ").");
+    argp.addOption("--public-hostname", "Public hostname to use in odata response");
+    argp.addOption("--public-port", "Public port to use in odata response");
     CliOptions.addAutoMetricFlag(argp);
     args = CliOptions.parse(argp, args);
     if (args == null || !argp.has("--port")
@@ -134,7 +136,11 @@ final class TSDMain {
       final ServerBootstrap server = new ServerBootstrap(factory);
       final InetSocketAddress addr =
         new InetSocketAddress(Integer.parseInt(argp.get("--port")));
-      URI uri = new URI("http", null, InetAddress.getLocalHost().getCanonicalHostName(), addr.getPort(), null, null, null);
+      
+      String public_hostname = argp.get("--public-hostname", InetAddress.getLocalHost().getCanonicalHostName());
+      int public_port = Integer.parseInt(argp.get("--public-port", Integer.toString(addr.getPort())));
+      
+      URI uri = new URI("http", null, public_hostname, public_port, null, null, null);
 
       server.setPipelineFactory(new PipelineFactory(tsdb, uri));
       server.setOption("child.tcpNoDelay", true);

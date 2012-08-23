@@ -38,7 +38,6 @@ import net.opentsdb.odata.OpenTSDBProducer;
 import net.opentsdb.odata.OpenTSDBProducerFactory;
 import org.odata4j.jersey.producer.resources.ODataProducerProvider;
 import org.odata4j.jersey.producer.resources.ODataApplication;
-//import org.odata4j.producer.resources.ODataResourceConfig;
 
 /**
  * Creates a newly configured {@link ChannelPipeline} for a new channel.
@@ -73,6 +72,7 @@ public final class PipelineFactory implements ChannelPipelineFactory {
      */
     Map<String, Object> props = new HashMap<String, Object>();
     props.put(NettyHandlerContainer.PROPERTY_BASE_URI, baseUri.toString() + "/odata.svc/");
+    props.put(ResourceConfig.PROPERTY_CONTAINER_RESPONSE_FILTERS, "net.opentsdb.tsd.NoCacheFilter");
     
     ODataProducerProvider.setInstance(new OpenTSDBProducer(tsdb));
     ODataApplication app = new ODataApplication();
